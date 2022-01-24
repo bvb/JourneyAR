@@ -1,0 +1,40 @@
+{
+  "name": "journey-ar",
+  "version": "1.0.0",
+  "description": "test description",
+  "main": "app.js",
+  "scripts": {
+    "build": "webpack --config ./config/webpack.prod.js",
+    "dev": "webpack serve --config ./config/webpack.dev.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@babel/core": "^7.14.3",
+    "@babel/preset-env": "^7.14.4",
+    "babel-loader": "^8.2.2",
+    "buffer": "^6.0.3",
+    "clean-webpack-plugin": "^4.0.0-alpha.0",
+    "copy-webpack-plugin": "^9.0.0",
+    "crypto-browserify": "^3.12.0",
+    "css-loader": "^5.2.6",
+    "dat.gui": "^0.7.7",
+    "file-loader": "^6.2.0",
+    "html-loader": "^2.1.2",
+    "html-webpack-plugin": "^5.3.1",
+    "mini-css-extract-plugin": "^1.6.0",
+    "path": "^0.12.7",
+    "portfinder-sync": "0.0.2",
+    "purecss": "^2.0.6",
+    "raw-loader": "^4.0.2",
+    "stream-browserify": "^3.0.0",
+    "style-loader": "^2.0.0",
+    "three": "^0.129.0",
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^3.11.2",
+    "webpack-merge": "^5.8.0"
+  },
+  "devDependencies": {}
+}
