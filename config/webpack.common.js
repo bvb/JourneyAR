@@ -1,79 +1,97 @@
-const CopyWebpackPlugin = require('copy-webpack-plugin')
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-const MiniCSSExtractPlugin = require('mini-css-extract-plugin')
-const path = require('path')
+//https://github.com/webpack/webpack-cli
 
-module.exports = {
-    entry: path.resolve(__dirname, '../src/scripts/app.js'),
-    output:
-    {
-        filename: 'bundle.[contenthash].js',
-        path: path.resolve(__dirname, '../dist')
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { createRequire } from 'module';
+
+const __filename = fileURLToPath(import.meta.url);
+const __require = createRequire(import.meta.url);
+const __dirname = dirname(__filename);
+
+//const pathName = require.resolve('vue.runtime.esm.js');
+
+import { resolve as _resolve } from 'path'
+import CopyWebpackPlugin from 'copy-webpack-plugin'
+import HtmlWebpackPlugin from 'html-webpack-plugin'
+import MiniCssExtractPlugin from "mini-css-extract-plugin";
+const { loader: _loader } = MiniCssExtractPlugin;
+
+export const commonConfiguration = {
+    entry : {
+        "mylib": _resolve(__dirname, '../src/index.ts')
     },
-    devtool: 'source-map',
-    plugins:
-    [
+    output : {
+        path: _resolve(__dirname, "../dist"),
+        chunkFilename: '[name].js',
+        filename: '[name].js'
+    },
+    devtool : 'source-map',
+    plugins : [
         new CopyWebpackPlugin({
             patterns: [
-                { from: path.resolve(__dirname, '../static/'), to: "static/" }
+                { from: _resolve(__dirname, '../static/'), to: "static/" }
                 //{ from: path.resolve(__dirname, '../static/nft/'), to: "static/nft/" },
                 //{ from: path.resolve(__dirname, '../static/favicon/'), to: "/" }
             ]
         }),
         new HtmlWebpackPlugin({
-            template: path.resolve(__dirname, '../src/index.html'),
-            favicon: path.resolve(__dirname, '../static/favicon/favicon.ico'),
+            template: _resolve(__dirname, '../src/index.html'),
+            favicon: _resolve(__dirname, '../static/favicon/favicon.ico'),
             minify: false
         }),
-        new MiniCSSExtractPlugin()
+        new MiniCssExtractPlugin()
     ],
-    resolve: {
-        fallback: 
-        {
-            crypto: require.resolve("crypto-browserify"),
-            buffer: require.resolve("buffer"),
-            stream: require.resolve("stream-browserify"),
+    resolve : {
+        extensions: [".tsx", ".ts", ".js"],
+        fallback: {
+            crypto: __require.resolve("crypto-browserify"),
+            buffer: __require.resolve("buffer"),
+            stream: __require.resolve("stream-browserify"),
             fs: false
         },
     },
-    module:
-    {
-        rules:
-        [
+    module : {
+        rules: [
             // HTML
             {
                 test: /\.(html)$/,
                 use: ['html-loader']
             },
-
-            // JS
+    
+            //TS
             {
-                test: /\.js$/,
-                exclude: /node_modules/,
-                use:
-                [
-                    {
-                        loader: 'babel-loader',
-                        options: {
-                            configFile: path.resolve(__dirname, '.babelrc')
-                        }
-                    }
-                ]
+                test: /\.(ts|tsx)$/i,
+                loader: "ts-loader",
+                exclude: ["/node_modules/"],
             },
-
+    
+            // JS
+            // {
+            //     test: /\.js$/i,
+            //     exclude: ["/node_modules/"],
+            //     use:
+            //     [
+            //         {
+            //             loader: 'babel-loader',
+            //             options: {
+            //                 configFile: path.resolve(__dirname, '.babelrc')
+            //             }
+            //         }
+            //     ]
+            // },
             // CSS
             {
-                test: /\.css$/,
-                use:
-                [
-                    MiniCSSExtractPlugin.loader,
+                test: /\.css$/i,
+                use: [
+                    _loader,
                     'css-loader'
                 ]
             },
-
+    
             // Images
             /*{
                 test: /\.(jpg|png|gif|svg)$/,
+                type: "asset",
                 use:
                 [
                     {
@@ -85,39 +103,20 @@ module.exports = {
                     }
                 ]
             },*/
-
             // Fonts
             {
                 test: /\.(ttf|eot|woff|woff2)$/,
-                use:
-                [
+                type: "asset",
+                use: [
                     {
                         loader: 'file-loader',
-                        options:
-                        {
+                        options: {
                             outputPath: 'assets/fonts/'
                         }
                     }
                 ]
             },
-
-            //WASM
-            /*{
-                test: /\.wasm$/,
-                mimetype: 'application/wasm',
-                type: 'webassembly/async',
-                use:
-                [
-                    {
-                        loader: "file-loader",
-                        options: 
-                        {
-                            //publicPath: path.resolve(__dirname, '/assets/'),
-                            outputPath: "assets/"
-                        }
-                    }
-                ]
-            }*/
         ]
     }
 }
+

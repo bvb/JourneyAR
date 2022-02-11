@@ -1,13 +1,14 @@
 import './style.css'
 import * as THREE from 'three'
+
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import * as dat from 'dat.gui'
+//import * as dat from 'dat.gui'
 
 // Debug
-const gui = new dat.GUI()
+//const gui = new dat.GUI()
 
 // Canvas
-const canvas = document.querySelector('canvas.webgl')
+const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement 
 
 // Scene
 const scene = new THREE.Scene()
@@ -18,7 +19,7 @@ const geometry = new THREE.TorusGeometry( .7, .2, 16, 100 );
 // Materials
 
 const material = new THREE.MeshBasicMaterial()
-material.color = new THREE.Color(0xff0000)
+material.color = new THREE.Color(0xffff00)
 
 // Mesh
 const sphere = new THREE.Mesh(geometry,material)
