@@ -17,6 +17,7 @@ import { configureLegacyRendering } from './scenes/legacy-rendering';
 import { loadScenesManifest } from './scenes/manifest';
 import { type FrameSource, createFrameSource } from './sources/frame-source';
 import './style.css';
+import { PoseSmoother } from './tracking/pose-smoother';
 import { TrackingLoop } from './tracking/tracking-loop';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -86,7 +87,15 @@ const hooks = installTestHooks({
   sourceState: 'idle',
   videoFrames: 0,
   videoSize: null,
-  tracking: { ready: false, processed: 0, scene: null, pose: null, events: [], processMs: [] },
+  tracking: {
+    ready: false,
+    processed: 0,
+    scene: null,
+    pose: null,
+    shownPose: null,
+    events: [],
+    processMs: [],
+  },
   scenes: arScenes.state,
 });
 
@@ -96,6 +105,7 @@ const video = document.querySelector<HTMLVideoElement>('#video')!;
 const startButton = document.querySelector<HTMLButtonElement>('#start')!;
 let frameSource: FrameSource | null = null;
 let tracking: TrackingLoop | null = null;
+const smoother = new PoseSmoother(trackingOptions.smoothing);
 let running = false;
 
 function setState(state: NonNullable<typeof hooks>['sourceState'], message = ''): void {
@@ -112,11 +122,13 @@ function startTracking(sourceInUse: FrameSource): void {
     scenes: manifest.scenes,
     baseUrl: import.meta.env.BASE_URL,
     filter: trackingOptions.filter,
-    horizontalFov: trackingOptions.horizontalFov,
+    fieldOfView: trackingOptions.fieldOfView,
     sourceFocal: sourceInUse.focal,
     onResult(result) {
+      // A page found (again) starts the smoothing over; the anchor follows in the render loop.
+      if (result.transitions.some((t) => t.type === 'found')) smoother.reset();
+      if (result.pose) smoother.addPose(result.pose, performance.now());
       anchor.visible = result.pose !== null;
-      if (result.pose) anchor.matrix.fromArray(result.pose);
       arScenes.setTracked(result.scene);
       // Preload the scenes once the tracker runs: it gets the CPU first on a phone.
       if (!preloading) {
@@ -190,6 +202,10 @@ renderer.setAnimationLoop((time) => {
   const deltaSeconds = lastTime === null ? 0 : (time - lastTime) / 1000;
   lastTime = time;
   arScenes.update(deltaSeconds);
+  if (anchor.visible) {
+    smoother.frame(deltaSeconds, anchor.matrix);
+    if (hooks) hooks.tracking.shownPose = anchor.matrix.toArray();
+  }
   const tracker = tracking?.activeTracker;
   const geometry = tracking?.geometry;
   if (tracker && geometry) {

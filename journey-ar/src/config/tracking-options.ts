@@ -1,15 +1,21 @@
 import type { FilterConfig } from '@webarkit/jsartoolkit-nft/client';
+import { type SmoothingSettings, parseSmoothing } from '../tracking/pose-smoother';
 
 /** Tracking settings that can be changed with URL parameters (for debugging and tests). */
 export interface TrackingOptions {
-  /** Assumed horizontal field of view of the camera, degrees (`?fov=`). */
-  horizontalFov: number;
-  /** Pose filter (`?filter=native|none|oneeuro`). */
+  /**
+   * Assumed field of view of the camera along the long side of the frame, degrees (`?fov=`):
+   * the horizontal one when the phone is held sideways. It does not change when the phone turns.
+   */
+  fieldOfView: number;
+  /** Pose filter of the tracker core (`?filter=native|none|oneeuro`). */
   filter: FilterConfig;
+  /** Smoothing of the shown pose (`?smooth=off` or `?smooth=<minCutoff>,<beta>,...`). */
+  smoothing: SmoothingSettings | null;
 }
 
-/** A typical phone main camera; the virtual camera uses the same by default. */
-export const DEFAULT_HORIZONTAL_FOV = 63;
+/** A typical phone main camera (checked on the user's phone); the virtual camera matches it. */
+export const DEFAULT_FIELD_OF_VIEW = 63;
 
 const FILTERS: Record<string, FilterConfig> = {
   native: 'native',
@@ -28,7 +34,8 @@ export function parseTrackingOptions(search: string): TrackingOptions {
     );
   }
   return {
-    horizontalFov: fov > 10 && fov < 170 ? fov : DEFAULT_HORIZONTAL_FOV,
+    fieldOfView: fov > 10 && fov < 170 ? fov : DEFAULT_FIELD_OF_VIEW,
     filter,
+    smoothing: parseSmoothing(params.get('smooth')),
   };
 }

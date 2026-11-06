@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HORIZONTAL_FOV, parseTrackingOptions } from '../../src/config/tracking-options';
+import { DEFAULT_FIELD_OF_VIEW, parseTrackingOptions } from '../../src/config/tracking-options';
+import { DEFAULT_SMOOTHING } from '../../src/tracking/pose-smoother';
 import { cameraParamBytes, focalForFov, processingSize } from '../../src/tracking/camera-params';
 
 describe('cameraParamBytes', () => {
@@ -37,14 +38,16 @@ describe('processingSize', () => {
 describe('parseTrackingOptions', () => {
   it('defaults to the native filter and a phone field of view', () => {
     expect(parseTrackingOptions('')).toEqual({
-      horizontalFov: DEFAULT_HORIZONTAL_FOV,
+      fieldOfView: DEFAULT_FIELD_OF_VIEW,
       filter: 'native',
+      smoothing: DEFAULT_SMOOTHING,
     });
   });
 
   it('reads ?fov= and ?filter=', () => {
-    const options = parseTrackingOptions('?fov=70&filter=oneeuro');
-    expect(options.horizontalFov).toBe(70);
+    const options = parseTrackingOptions('?fov=70&filter=oneeuro&smooth=off');
+    expect(options.fieldOfView).toBe(70);
+    expect(options.smoothing).toBeNull();
     expect(options.filter).toMatchObject({ type: 'oneEuro' });
   });
 

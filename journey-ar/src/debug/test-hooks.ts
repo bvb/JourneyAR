@@ -26,6 +26,8 @@ export interface TrackingHooks {
   /** Scene whose page is tracked, and its pose (page -> camera, column-major, mm). */
   scene: string | null;
   pose: number[] | null;
+  /** The pose shown on screen (smoothed), updated every display frame. */
+  shownPose: number[] | null;
   /** Found/lost transitions with their time (performance.now()). */
   events: { type: 'found' | 'lost'; scene: string; time: number }[];
   /** Worker processing times of the last frames, ms. */

@@ -7,6 +7,15 @@ import { type Page, expect, test } from '@playwright/test';
 
 const SCENES = ['character', 'creature', 'landscape', 'architecture', 'sequence'];
 
+/**
+ * Time limits are for Edge, the primary browser. The headless Chromium build renders the
+ * virtual camera much slower (latency ~450 ms against ~130 ms in Edge on the same machine), so
+ * its time limits are looser; accuracy limits are the same everywhere.
+ */
+function timeScale(projectName: string): number {
+  return projectName === 'chromium' ? 3 : 1;
+}
+
 interface StaticMetrics {
   scene: string;
   detectMs: number;
@@ -26,6 +35,9 @@ interface MotionMetrics {
   lagMs: number;
   /** Error against the current pose (accuracy and latency together), for information. */
   currentTranslationMm: number;
+  /** The same for the pose shown on screen (smoothed): error at the best match and its lag. */
+  shownTranslationMm: number;
+  shownLagMs: number;
 }
 
 async function startTracking(page: Page, filter = 'native'): Promise<void> {
@@ -145,6 +157,14 @@ function measureMotion(page: Page): Promise<MotionMetrics> {
     await w.waitUntil(() => tracking.scene === 'architecture');
     const history: { time: number; pose: number[] }[] = [];
     const best: { translation: number; angle: number; lag: number }[] = [];
+    const shown: { translation: number; lag: number }[] = [];
+    const bestMatch = (pose: number[], at: number) => {
+      const errors = history
+        .filter((h) => at - h.time < 1500)
+        .map((h) => ({ ...w.poseError(pose, h.pose), lag: at - h.time }));
+      errors.sort((a, b) => a.translation - b.translation);
+      return errors[0]!;
+    };
     const current: number[] = [];
     let frames = 0;
     let processed = tracking.processed;
@@ -171,6 +191,9 @@ function measureMotion(page: Page): Promise<MotionMetrics> {
           current.push(w.poseError(pose, vcam.getGroundTruth().modelView).translation);
         }
       }
+      const shownPose = window.__journey!.tracking.shownPose;
+      if (shownPose && performance.now() - start > 500)
+        shown.push(bestMatch(shownPose, performance.now()));
       if (k >= 1) break;
     }
     return {
@@ -179,11 +202,14 @@ function measureMotion(page: Page): Promise<MotionMetrics> {
       angleDeg: median(best.map((e) => e.angle)),
       lagMs: median(best.map((e) => e.lag)),
       currentTranslationMm: median(current),
+      shownTranslationMm: median(shown.map((e) => e.translation)),
+      shownLagMs: median(shown.map((e) => e.lag)),
     };
   });
 }
 
 test('detects, tracks and loses every page like the ground truth says', async ({ page }, info) => {
+  const slow = timeScale(info.project.name);
   test.setTimeout(90_000);
   await startTracking(page);
   await installHelpers(page);
@@ -195,11 +221,11 @@ test('detects, tracks and loses every page like the ground truth says', async ({
   });
   console.table(results.map((r) => ({ ...r, otherScenes: r.otherScenes.join(' ') })));
   for (const r of results) {
-    expect.soft(r.detectMs, `${r.scene} detection`).toBeLessThan(1500);
+    expect.soft(r.detectMs, `${r.scene} detection`).toBeLessThan(1500 * slow);
     expect.soft(r.translationMm, `${r.scene} position error`).toBeLessThan(10);
     expect.soft(r.angleDeg, `${r.scene} angle error`).toBeLessThan(2);
     expect.soft(r.jitterMm, `${r.scene} jitter`).toBeLessThan(2);
-    expect.soft(r.lossMs, `${r.scene} loss`).toBeLessThan(500);
+    expect.soft(r.lossMs, `${r.scene} loss`).toBeLessThan(500 * slow);
     expect.soft(r.otherScenes, `${r.scene} confused with`).toEqual([]);
   }
 });
@@ -207,6 +233,7 @@ test('detects, tracks and loses every page like the ground truth says', async ({
 // The native filter of the core: with the library's default OneEuro settings the rotation
 // lags by about 12 degrees on this orbit (measured 2026-11-06), so OneEuro is not the default.
 test('keeps tracking a moving camera', async ({ page }, info) => {
+  const slow = timeScale(info.project.name);
   test.setTimeout(60_000);
   await startTracking(page);
   await installHelpers(page);
@@ -219,6 +246,55 @@ test('keeps tracking a moving camera', async ({ page }, info) => {
   expect(metrics.trackedShare).toBeGreaterThan(0.9);
   expect(metrics.translationMm).toBeLessThan(10);
   expect(metrics.angleDeg).toBeLessThan(2);
-  // Edge: ~130 ms on this machine; the headless Chromium build renders slower.
-  expect(metrics.lagMs).toBeLessThan(500);
+  expect(metrics.lagMs).toBeLessThan(500 * slow);
+  // The shown pose is smoothed: it lags more, but stays on the page.
+  expect(metrics.shownTranslationMm).toBeLessThan(10);
+  expect(metrics.shownLagMs).toBeLessThan(1000 * slow);
+});
+
+// A phone turned upright: the frames become portrait. The tracker keeps running on a landscape
+// frame (the portrait one drawn rotated), so its camera is the phone camera turned by 90
+// degrees about the view axis: x' = y, y' = -x.
+test('keeps tracking when the camera turns to portrait', async ({ page }) => {
+  test.setTimeout(60_000);
+  await startTracking(page);
+  await installHelpers(page);
+  const result = await page.evaluate(async () => {
+    const w = window as unknown as {
+      waitUntil(condition: () => boolean, timeout?: number): Promise<boolean>;
+      poseError(p: number[], t: number[]): { translation: number; angle: number };
+    };
+    const vcam = window.__vcam!;
+    const tracking = window.__journey!.tracking;
+    vcam.setPose({ target: [0, 0], distance: 400, tilt: 20, azimuth: 0, roll: 0 });
+    await vcam.setPage('architecture');
+    const landscape = await w.waitUntil(() => tracking.scene === 'architecture');
+
+    // Same lens, held upright: the long side keeps its 63 degrees.
+    vcam.setFrame({ width: 480, height: 640, fov: 63 });
+    const switched = performance.now();
+    await w.waitUntil(() => window.__journey!.videoSize?.[1] === 640);
+    // Tracking again on portrait frames, then ten more frames for the pose to settle.
+    const afterSwitch = tracking.processed;
+    await w.waitUntil(
+      () => tracking.processed > afterSwitch && tracking.scene === 'architecture',
+      15_000,
+    );
+    const settled = tracking.processed + 10;
+    await w.waitUntil(() => tracking.processed >= settled, 15_000);
+    const portrait = tracking.scene === 'architecture' && tracking.pose !== null;
+    const truth = vcam.getGroundTruth().modelView;
+    const turned = [...truth];
+    for (let c = 0; c < 4; c += 1) {
+      turned[c * 4] = truth[c * 4 + 1]!;
+      turned[c * 4 + 1] = -truth[c * 4]!;
+    }
+    const error = tracking.pose ? w.poseError(tracking.pose, turned) : null;
+    const lostSince = tracking.events.filter((e) => e.time > switched && e.type === 'lost').length;
+    return { landscape, portrait, error, lostSince };
+  });
+  expect(result.landscape).toBe(true);
+  expect(result.portrait).toBe(true);
+  expect(result.error!.translation).toBeLessThan(10);
+  expect(result.error!.angle).toBeLessThan(2);
 });

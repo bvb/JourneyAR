@@ -10,7 +10,7 @@
 - `journey-virtual-book-camera/` — виртуальная камера для тестов (страницы в 3D, выдача потока в приложение).
 - `tools/` — конвейер ассетов (Unity-экспорт, NFT, gltf-transform, ffmpeg). Пути к внешним программам — в `tools/config.mjs`, переопределяются переменными окружения.
 - `book-ar-pages/` — изображения отслеживаемых страниц (в git, через LFS).
-- Вне git: `book/`, `unity-data-project/`, `android-ar-viewer.1.0/`.
+- Вне git: `book/`, `unity-data-project/`, `android-ar-viewer.1.0/`, `videos-from-internet/` (видео работы оригинального приложения — эталон вида сцен).
 
 ## Команды (из корня)
 
@@ -46,7 +46,7 @@
 - Эталоны Unity рендерятся без HDR намеренно (как 8-битный буфер телефона).
 - Отладка в `scene-preview.html`: `?t=` (время), `?hide=<материалы>`, `?ref=<папка эталонов в tools/.out>`; в Unity — `-journeyTargets`, `-journeyHide`, `-journeyTime`, `-journeyOut` (аргументы `node tools/unity/run-unity.mjs`).
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
-- Трекинг: `src/tracking/` — jsartoolkit-nft в воркере (файлы воркера раздаются по `/nft-worker/` плагином в `vite.config.ts`), кадр 640 px по длинной стороне, одна активная страница, потеря на первом кадре без страницы, фильтр `native`. Параметры отладки: `?fov=<гориз. угол>` (по умолчанию 63°), `?filter=native|none|oneeuro`, `?debug` (контур страницы и оси).
+- Трекинг: `src/tracking/` — jsartoolkit-nft в воркере (файлы воркера раздаются по `/nft-worker/` плагином в `vite.config.ts`), кадр 640 px по длинной стороне, одна активная страница, потеря на первом кадре без страницы, фильтр `native`. Портретное видео подаётся трекеру повёрнутым в альбомный кадр (`rotated` в геометрии), поэтому поворот телефона не пересоздаёт трекер. Показываемая поза сглаживается (`src/tracking/pose-smoother.ts`: One Euro + плавное догоняние на каждом кадре экрана). Параметры отладки: `?fov=<угол по длинной стороне>` (по умолчанию 63°), `?filter=native|none|oneeuro` (фильтр ядра трекера), `?smooth=off` или `?smooth=<minCutoff>,<beta>,<rotationBeta>,<easing>`, `?debug` (контур страницы и оси).
 - Сцены: `src/scenes/ar-scenes.ts` — якорь (поза трекера) → `anchorMatrix(scene.anchor)` → GLB; ленивая загрузка, предзагрузка в фоне после старта трекера, перезапуск анимаций при каждом обнаружении, скрытие в кадр потери. Состояние — `window.__journey.scenes`. Состояние трекера — `window.__journey.tracking` (страница, поза, события found/lost); метрики по точной позе — `tests/e2e/tracking.spec.ts`.
 - Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`), запускаются кнопкой «Старт»:
   - `canvas` — виртуальная камера внутри приложения, управление через `window.__vcam`;
