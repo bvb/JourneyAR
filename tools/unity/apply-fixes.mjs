@@ -3,7 +3,8 @@
 // 1. Removes ripped files that no longer compile and are not used by anything.
 // 2. Copies rewritten files from ./overlay over the broken originals. Only existing files
 //    are replaced, so their .meta files (and the GUIDs materials refer to) stay intact.
-// 3. Registers the local editor package tools/unity-export in Packages/manifest.json.
+// 3. Registers the local editor package tools/unity-export and UnityGLTF in
+//    Packages/manifest.json.
 //
 // Every file is backed up to tools/.out/unity-backup/ before it is removed or replaced.
 import {
@@ -43,6 +44,10 @@ const REMOVED_FILES = [
 ];
 
 const PACKAGE_NAME = 'com.journey.unity-export';
+
+// glTF exporter for Unity (Khronos), from the OpenUPM registry.
+const UNITYGLTF = { name: 'org.khronos.unitygltf', version: '2.24.0' };
+const OPENUPM = { name: 'OpenUPM', url: 'https://package.openupm.com', scopes: ['org.khronos'] };
 
 function rel(file) {
   return path.relative(UNITY_PROJECT, file).replaceAll('\\', '/');
@@ -97,15 +102,37 @@ for (const source of walk(OVERLAY)) {
 }
 
 const manifestPath = path.join(UNITY_PROJECT, 'Packages', 'manifest.json');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-const packageRef = `file:${path
-  .relative(path.dirname(manifestPath), path.join(ROOT, 'tools', 'unity-export'))
-  .replaceAll('\\', '/')}`;
-if (manifest.dependencies[PACKAGE_NAME] === packageRef) {
-  console.log(`unchanged Packages/manifest.json (${PACKAGE_NAME})`);
+const originalManifest = readFileSync(manifestPath, 'utf8');
+const manifest = JSON.parse(originalManifest);
+
+const requiredPackages = {
+  [PACKAGE_NAME]: `file:${path
+    .relative(path.dirname(manifestPath), path.join(ROOT, 'tools', 'unity-export'))
+    .replaceAll('\\', '/')}`,
+  [UNITYGLTF.name]: UNITYGLTF.version,
+};
+const otherPackages = Object.fromEntries(
+  Object.entries(manifest.dependencies).filter(([name]) => !(name in requiredPackages)),
+);
+manifest.dependencies = { ...requiredPackages, ...otherPackages };
+
+manifest.scopedRegistries ??= [];
+let registry = manifest.scopedRegistries.find((r) => r.url === OPENUPM.url);
+if (!registry) {
+  registry = { name: OPENUPM.name, url: OPENUPM.url, scopes: [] };
+  manifest.scopedRegistries.push(registry);
+}
+for (const scope of OPENUPM.scopes) {
+  if (!registry.scopes.includes(scope)) registry.scopes.push(scope);
+}
+
+const updatedManifest = `${JSON.stringify(manifest, null, 2)}\n`;
+if (updatedManifest === originalManifest) {
+  console.log('unchanged Packages/manifest.json');
 } else {
   backup(manifestPath);
-  manifest.dependencies = { [PACKAGE_NAME]: packageRef, ...manifest.dependencies };
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`updated   Packages/manifest.json (${PACKAGE_NAME} -> ${packageRef})`);
+  writeFileSync(manifestPath, updatedManifest);
+  for (const [name, ref] of Object.entries(requiredPackages)) {
+    console.log(`updated   Packages/manifest.json: ${name} -> ${ref}`);
+  }
 }

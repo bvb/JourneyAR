@@ -21,6 +21,8 @@
     "unity:fix": "npm run unity:fix -w tools",
     "unity:check": "npm run unity:check -w tools",
     "unity:render": "npm run unity:render -w tools",
+    "unity:export": "npm run unity:export -w tools",
+    "gltf:inspect": "npm run gltf:inspect -w tools",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "devDependencies": {

@@ -1,9 +1,11 @@
 {
   "name": "Journey.UnityExport.Editor",
   "rootNamespace": "Journey.UnityExport",
-  "references": [],
+  "references": ["UnityGLTFScripts", "GLTFSerialization"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
   "autoReferenced": false
 }

@@ -23,6 +23,8 @@
 - `npm run unity:fix` — применить правки к `unity-data-project` (идемпотентно, резервные копии в `tools/.out/unity-backup/`).
 - `npm run unity:check` — batchmode-проверка Unity-проекта: компиляция, шейдеры, материалы (отчёт в `tools/.out/unity/`).
 - `npm run unity:render` — эталонные рендеры каждого таргета в `tools/.out/reference/`.
+- `npm run unity:export` — экспорт каждого таргета в GLB (`tools/.out/export/`) с отчётом `export-report.json`.
+- `npm run gltf:inspect` — gltf-validator + сверка GLB с отчётом Unity.
 
 ## Правила
 

@@ -6,9 +6,14 @@
     "check-env": "node check-env.mjs",
     "unity:fix": "node unity/apply-fixes.mjs",
     "unity:check": "node unity/run-unity.mjs Journey.UnityExport.ProjectCheck.Run",
-    "unity:render": "node unity/run-unity.mjs Journey.UnityExport.ReferenceRenderer.RenderAll"
+    "unity:render": "node unity/run-unity.mjs Journey.UnityExport.ReferenceRenderer.RenderAll",
+    "unity:export": "node unity/run-unity.mjs Journey.UnityExport.SceneExporter.ExportAll",
+    "gltf:inspect": "node gltf/inspect-export.mjs"
   },
   "dependencies": {
-    "ffmpeg-static": "^5.3.0"
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "ffmpeg-static": "^5.3.0",
+    "gltf-validator": "^2.0.0-dev.3.10"
   }
 }
