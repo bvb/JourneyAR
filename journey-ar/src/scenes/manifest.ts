@@ -37,6 +37,8 @@ export interface SceneEntry {
   page: string;
   /** GLB URL relative to the app base. */
   model: string;
+  /** NFT marker URL prefix relative to the app base (+ .iset, .fset, .fset3). */
+  nft: string;
   audio: SceneAudio;
   anchor: SceneAnchor;
   pinch: ScenePinch;
@@ -87,6 +89,7 @@ function parseScene(value: unknown, path: string): SceneEntry {
     id: stringAt(scene['id'], `${path}.id`),
     page: stringAt(scene['page'], `${path}.page`),
     model: stringAt(scene['model'], `${path}.model`),
+    nft: stringAt(scene['nft'], `${path}.nft`),
     audio: {
       src: stringAt(audio['src'], `${path}.audio.src`),
       volume: numberAt(audio['volume'], `${path}.audio.volume`),

@@ -3,15 +3,18 @@
 // mip-mapped sampling, a textured background and sensor noise), feeds them to the Node build of
 // @webarkit/jsartoolkit-nft and compares the tracked pose with the ground truth.
 //
-// Usage: node nft/probe.mjs --markers=<dir> [scene ids...] [--frames=30] [--json=<file>]
+// Usage: node nft/probe.mjs [scene ids...] [--markers=<dir>] [--frames=30] [--json=<file>]
 //        [--save-frames=<dir>] (first frame of every view as PNG, to check the rendering)
-// <dir>/<id>/<id>.{iset,fset,fset3} are the markers; the frames are rendered from
+//        [--together] (all markers in one tracker, as in the app: also checks that a page is
+//        never taken for another one)
+// <dir>/<id>/<id>.{iset,fset,fset3} are the markers (default: the app's, journey-ar/assets/nft;
+// a relative <dir> is relative to tools/); the frames are rendered from
 // book-ar-pages/normalized/<id>.jpg (the page as printed, 303 x 226 mm).
 import { createNFTTracker } from '@webarkit/jsartoolkit-nft';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { FFMPEG, NORMALIZED_PAGES, PAGE_SIZE_MM } from '../config.mjs';
+import { AR_ASSETS, FFMPEG, NORMALIZED_PAGES, PAGE_SIZE_MM } from '../config.mjs';
 import { selectScenes } from '../scenes.mjs';
 import { decodeGray } from '../assets/images.mjs';
 
@@ -25,11 +28,11 @@ const FRAME_MS = 33;
 
 const args = process.argv.slice(2);
 const option = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
-const markersDir = path.resolve(option('markers') ?? '');
+const markersDir = path.resolve(option('markers') ?? path.join(AR_ASSETS, 'nft'));
 const frames = Number(option('frames') ?? 30);
 const jsonFile = option('json');
 const framesDir = option('save-frames');
-if (!option('markers')) throw new Error('Pass --markers=<dir>');
+const together = args.includes('--together');
 
 /**
  * Camera views of the page: the camera looks at `at` (page mm, origin at the page centre, Y to
@@ -271,10 +274,8 @@ const median = (values) => {
   return sorted[Math.floor(sorted.length / 2)];
 };
 
-const results = [];
-for (const scene of selectScenes(args)) {
-  const page = decodeGray(path.join(NORMALIZED_PAGES, `${scene.id}.jpg`));
-  const levels = pyramid(page, 6);
+/** A tracker with the markers of `sceneList`; `ids` maps the tracker's target ids to scene ids. */
+async function createTracker(sceneList) {
   const tracker = await createNFTTracker({
     width: WIDTH,
     height: HEIGHT,
@@ -282,17 +283,39 @@ for (const scene of selectScenes(args)) {
     filter: 'none',
     logLevel: 3,
   });
-  const marker = path.join(markersDir, scene.id, scene.id);
-  const [load] = await tracker.addNFTTargets([marker], { origin: 'center' });
-  if (load?.status !== 'loaded') throw new Error(`${scene.id}: ${load?.message ?? 'load failed'}`);
+  const markers = sceneList.map((scene) => path.join(markersDir, scene.id, scene.id));
+  const loads = await tracker.addNFTTargets(markers, { origin: 'center' });
+  const ids = new Map();
+  loads.forEach((load, i) => {
+    if (load.status !== 'loaded') throw new Error(`${markers[i]}: ${load.message}`);
+    ids.set(load.info.id, sceneList[i].id);
+  });
+  return { tracker, ids };
+}
 
-  let time = 0;
+const EMPTY_FRAME = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
+for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
+  EMPTY_FRAME.fill(BACKGROUND[i], i * 4, i * 4 + 3);
+  EMPTY_FRAME[i * 4 + 3] = 255;
+}
+
+const scenes = selectScenes(args);
+const shared = together ? await createTracker(scenes) : null;
+const results = [];
+let time = 0;
+let falsePositives = 0;
+for (const scene of scenes) {
+  const page = decodeGray(path.join(NORMALIZED_PAGES, `${scene.id}.jpg`));
+  const levels = pyramid(page, 6);
+  const { tracker, ids } = shared ?? (await createTracker([scene]));
+
   for (const view of VIEWS) {
     const truth = cameraPose(view);
     let firstFound = -1;
     const errors = [];
     const detectMs = [];
     const trackMs = [];
+    const wrong = new Map();
     for (let f = 0; f < frames; f += 1) {
       const frame = render(levels, truth, f + 1, view);
       if (framesDir && f === 0) {
@@ -300,8 +323,13 @@ for (const scene of selectScenes(args)) {
       }
       time += FRAME_MS;
       const result = tracker.process({ data: frame, width: WIDTH, height: HEIGHT }, time);
-      const target = result.targets[0];
-      if (target?.found && target.pose) {
+      for (const target of result.targets) {
+        if (!target.found || !target.pose) continue;
+        const found = ids.get(target.id);
+        if (found !== scene.id) {
+          wrong.set(found, (wrong.get(found) ?? 0) + 1);
+          continue;
+        }
         if (firstFound < 0) {
           firstFound = f;
           detectMs.push(result.processMs);
@@ -311,14 +339,22 @@ for (const scene of selectScenes(args)) {
         errors.push(poseError(fromGl(target.pose), truth));
       }
     }
-    // Lose the target between views: a few empty frames.
+    // Background-only frames between views. Right after the page leaves, tracking may still
+    // report it for a few frames ("lingering"); anything found after that is a false detection.
+    let lingering = 0;
+    let lost = false;
     for (let f = 0; f < 10; f += 1) {
-      time += 300;
-      tracker.process(
-        { data: new Uint8ClampedArray(WIDTH * HEIGHT * 4).fill(90), width: WIDTH, height: HEIGHT },
+      time += FRAME_MS;
+      const result = tracker.process(
+        { data: EMPTY_FRAME.slice(), width: WIDTH, height: HEIGHT },
         time,
       );
+      const found = result.targets.filter((target) => target.found).length;
+      if (found && !lost) lingering += 1;
+      else if (found) falsePositives += found;
+      else lost = true;
     }
+    time += 1000;
     const entry = {
       scene: scene.id,
       view: view.name,
@@ -329,18 +365,28 @@ for (const scene of selectScenes(args)) {
       angleDeg: median(errors.map((e) => e.angle)),
       detectMs: median(detectMs),
       trackMs: median(trackMs),
+      trackMaxMs: trackMs.length ? Math.max(...trackMs) : NaN,
+      wrong: Object.fromEntries(wrong),
+      lingeringFrames: lingering,
     };
     results.push(entry);
+    const wrongText = wrong.size
+      ? `, WRONG: ${[...wrong].map(([id, n]) => `${id} x${n}`).join(', ')}`
+      : '';
     console.log(
       `${scene.id.padEnd(13)} ${view.name.padEnd(10)} ` +
         (entry.found
           ? `found at frame ${String(firstFound).padStart(2)}, tracked ${String(errors.length).padStart(2)}/${frames}, ` +
             `error ${entry.translationMm.toFixed(1)} mm / ${entry.angleDeg.toFixed(2)} deg, ` +
-            `detect ${entry.detectMs.toFixed(0)} ms, track ${Number.isNaN(entry.trackMs) ? '-' : entry.trackMs.toFixed(0)} ms`
-          : 'not found'),
+            `detect ${entry.detectMs.toFixed(0)} ms, track ${Number.isNaN(entry.trackMs) ? '-' : `${entry.trackMs.toFixed(0)} (max ${entry.trackMaxMs.toFixed(0)})`} ms`
+          : 'not found') +
+        (lingering ? `, still reported ${lingering} frame(s) after the page left` : '') +
+        wrongText,
     );
   }
-  tracker.dispose?.();
+  if (!shared) tracker.dispose?.();
 }
+shared?.tracker.dispose?.();
+console.log(`false detections on background-only frames: ${falsePositives}`);
 
 if (jsonFile) writeFileSync(jsonFile, `${JSON.stringify(results, null, 2)}\n`);

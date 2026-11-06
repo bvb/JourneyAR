@@ -37,6 +37,9 @@ describe('shipped scenes.json', () => {
     '%s references existing files',
     (_, scene) => {
       expect(existsSync(new URL(scene.model, ASSETS))).toBe(true);
+      for (const ext of ['iset', 'fset', 'fset3']) {
+        expect(existsSync(new URL(`${scene.nft}.${ext}`, ASSETS))).toBe(true);
+      }
       expect(existsSync(new URL(scene.audio.src, ASSETS))).toBe(true);
       expect(existsSync(new URL(`Artbook_Journey-${scene.page}-image1.jpg`, PAGES))).toBe(true);
       expect(glbNodeNames(new URL(scene.model, ASSETS))).toContain(scene.pinch.node);
@@ -61,6 +64,7 @@ describe('parseScenesManifest', () => {
         id: 'a',
         page: 'page1',
         model: 'models/a.glb',
+        nft: 'nft/a/a',
         audio: { src: 'audio/a.mp3', volume: 1, loop: true },
         anchor: { center: [0, 0], width: 200 },
         pinch: { node: 'Root', min: 1, max: 2, snapBack: false },

@@ -29,7 +29,8 @@
 - `npm run assets:publish` — GLB и MP3 в `journey-ar/assets`, генерация `scenes.json`; привязка сцен к страницам — поиском текстур таргетов Vuforia на сканах (превью в `tools/.out/anchors/`). Уже записанные привязки сохраняются, пересчёт: `npm run assets:publish -- --reset-anchors`.
 - `npm run pages:normalize` — сканы страниц → `book-ar-pages/normalized/<id>.jpg` (1700×1268, 142.5 dpi, симметричная обрезка).
 - `npm run nft:generate -- [id...]` — NFT-маркеры (`.iset/.fset/.fset3`) в `journey-ar/assets/nft/<id>/` (`--pages=`, `--out=` для экспериментов); логи в `tools/.out/logs/`.
-- `npm run nft:probe -- --markers=<папка> [id...]` — проверка маркеров без браузера: синтетические кадры с известной позой → Node-сборка jsartoolkit-nft → ошибка позы и время детекта.
+- `npm run nft:probe -- [id...] [--together] [--markers=<папка>]` — проверка маркеров без браузера: синтетические кадры с известной позой → Node-сборка jsartoolkit-nft → ошибка позы, время детекта, путаница страниц (`--together` — все маркеры в одном трекере, как в приложении). По умолчанию — маркеры приложения; относительная `--markers` считается от `tools/`.
+- После смены страниц: `pages:normalize` → `nft:generate` → `assets:publish` → `nft:probe -- --together`.
 - Конвейер целиком: `unity:fix` → `unity:check` → `unity:render` → `unity:export` → `gltf:inspect` → `scenes:compare` → `assets:publish` (Unity закрыт).
 
 ## Правила

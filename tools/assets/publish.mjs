@@ -3,7 +3,7 @@
 //   for now, see .plans/plan.md);
 // - copies the original MP3 tracks to journey-ar/assets/audio/<id>.mp3 without re-encoding (they
 //   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other);
-// - writes journey-ar/assets/scenes.json.
+// - writes journey-ar/assets/scenes.json (the NFT markers must exist: npm run nft:generate).
 //
 // The anchor of a scene (where its target sits on the page) is found by locating the original
 // Vuforia target texture on the page scan; a preview with the target outline goes to
@@ -151,6 +151,12 @@ for (const scene of SCENES) {
   const pinch = single(componentsOf(document, 'PinchScale'), 'PinchScale', scene.id);
   const initialScale = pinch.node.getScale()[0];
 
+  // NFT marker files from nft:generate; the app loads them by this URL prefix.
+  for (const ext of ['iset', 'fset', 'fset3']) {
+    const file = path.join(AR_ASSETS, 'nft', scene.id, `${scene.id}.${ext}`);
+    if (!existsSync(file)) throw new Error(`Missing ${file}; run npm run nft:generate`);
+  }
+
   const target = vuforiaTargets.get(scene.target);
   if (!target) throw new Error(`${scene.id}: no Vuforia target ${scene.target}`);
   const kept = resetAnchors ? undefined : previous.scenes.find((s) => s.id === scene.id)?.anchor;
@@ -160,6 +166,7 @@ for (const scene of SCENES) {
     id: scene.id,
     page: scene.page,
     model: `models/${scene.id}.glb`,
+    nft: `nft/${scene.id}/${scene.id}`,
     audio: { src: `audio/${scene.id}.mp3`, volume: audio.volume, loop: audio.loop },
     anchor: kept ?? locateAnchor(scene, target),
     pinch: {
