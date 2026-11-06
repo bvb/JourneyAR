@@ -18,7 +18,7 @@ export default defineConfig(
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    files: ['**/*.{js,mjs}', '**/*.config.ts', '**/tests/**/*.ts'],
+    files: ['**/*.{js,mjs}', '**/*.config.ts', '**/tests/**/*.ts', 'journey-ar/dev/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   {

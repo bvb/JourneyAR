@@ -1,3 +1,4 @@
 package-lock.json
 .plans/
 **/assets/**/*.json
+**/tests/recordings/

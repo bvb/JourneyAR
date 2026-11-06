@@ -104,6 +104,7 @@ export class VirtualCamera {
   private readonly pageMesh: Mesh;
   private readonly textures = new Map<string, Promise<Texture>>();
   private readonly listeners = new Set<() => void>();
+  private readonly renderListeners = new Set<(time: number) => void>();
   private pose: CameraPose = structuredClone(DEFAULT_POSE);
   private frame: FrameSettings = { ...DEFAULT_FRAME };
   private page: string | null = null;
@@ -140,6 +141,20 @@ export class VirtualCamera {
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Calls `listener` after every rendered frame with its time (performance.now()). */
+  onRender(listener: (time: number) => void): () => void {
+    this.renderListeners.add(listener);
+    return () => this.renderListeners.delete(listener);
+  }
+
+  /**
+   * A video stream of the rendered frames. Without `fps`, every render() becomes a frame,
+   * also in the paused (frame-by-frame) mode; with `fps`, at most that many per second.
+   */
+  captureStream(fps?: number): MediaStream {
+    return this.canvas.captureStream(fps);
   }
 
   getPage(): string | null {
@@ -209,6 +224,8 @@ export class VirtualCamera {
   render(): void {
     this.renderer.render(this.scene, this.camera);
     this.framesRendered += 1;
+    const time = performance.now();
+    for (const listener of this.renderListeners) listener(time);
   }
 
   /** Renders continuously (one frame per display refresh) until stop(). */

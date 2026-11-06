@@ -1,4 +1,5 @@
 import type { CameraPose, FrameSettings } from './pose';
+import { Recorder, type SavedRecording, saveRecording } from './recorder';
 import type { GroundTruth, VirtualCamera } from './virtual-camera';
 
 /** Test and automation API of the virtual camera, installed as `window.__vcam`. */
@@ -21,6 +22,10 @@ export interface VcamApi {
   setPaused(paused: boolean): void;
   /** Renders one frame now, with the current page, pose and frame settings. */
   renderFrame(): void;
+  /** Starts recording the frames (WebM) with their ground truth. */
+  startRecording(): void;
+  /** Stops recording and saves <name>.webm and <name>.json (see saveRecording). */
+  stopRecording(name: string): Promise<SavedRecording>;
 }
 
 declare global {
@@ -29,7 +34,7 @@ declare global {
   }
 }
 
-export function createVcamApi(vcam: VirtualCamera): VcamApi {
+export function createVcamApi(vcam: VirtualCamera, recorder = new Recorder(vcam)): VcamApi {
   return {
     ready: false,
     pages: vcam.pages.map((p) => p.id),
@@ -47,5 +52,7 @@ export function createVcamApi(vcam: VirtualCamera): VcamApi {
     project: (point) => vcam.project(point),
     setPaused: (paused) => (paused ? vcam.stop() : vcam.start()),
     renderFrame: () => vcam.render(),
+    startRecording: () => recorder.start(),
+    stopRecording: async (name) => saveRecording(name, await recorder.stop()),
   };
 }

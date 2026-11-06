@@ -15,7 +15,7 @@
 ## Команды (из корня)
 
 - `npm run dev` — приложение на https://localhost:5173 (самоподписанный сертификат, доступно в LAN).
-- `npm run dev:vcam` — виртуальная камера на https://localhost:5174: страницы клавишами 1–5 (0 — без страницы), поза камеры полями, пресетами и мышью; API `window.__vcam` (`setPage`, `setPose`, `setFrame`, `getGroundTruth`, `project`, `setPaused`/`renderFrame`).
+- `npm run dev:vcam` — виртуальная камера на https://localhost:5174 (блоки «Запись» и «WebRTC»): страницы клавишами 1–5 (0 — без страницы), поза камеры полями, пресетами и мышью; API `window.__vcam` (`setPage`, `setPose`, `setFrame`, `getGroundTruth`, `project`, `setPaused`/`renderFrame`).
 - `npm run check` — typecheck + lint + prettier + unit-тесты.
 - `npm run e2e` — Playwright для journey-ar и виртуальной камеры: Edge и изолированный Chromium. Один браузер: `npm run e2e -- --project=edge`.
 - `npm run build` — сборка всех workspaces.
@@ -46,7 +46,10 @@
 - Эталоны Unity рендерятся без HDR намеренно (как 8-битный буфер телефона).
 - Отладка в `scene-preview.html`: `?t=` (время), `?hide=<материалы>`, `?ref=<папка эталонов в tools/.out>`; в Unity — `-journeyTargets`, `-journeyHide`, `-journeyTime`, `-journeyOut` (аргументы `node tools/unity/run-unity.mjs`).
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
-- Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`).
+- Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`), запускаются кнопкой «Старт»:
+  - `canvas` — виртуальная камера внутри приложения, управление через `window.__vcam`;
+  - `webrtc` — поток из открытой vcam (`npm run dev:vcam`) через ретранслятор `/__signal` dev-сервера приложения (работает и на телефоне в LAN);
+  - `video&src=/__recordings/<имя>.webm` — запись из `journey-ar/tests/recordings` (записи делает vcam: кнопка «Запись» или `__vcam.startRecording()`/`stopRecording(имя)`, рядом `<имя>.json` с точной позой каждого кадра).
 - TypeScript закреплён на 6.0.x: typescript-eslint пока поддерживает только `<6.1`.
 - three.js закреплён на точной версии (0.187.0) вместе с `@types/three`.
 - `mind-ar` не устанавливать через npm: он тянет нативный `canvas` 2.x, который не собирается под Node 26. `.mind` компилировать в браузере (фаза 2).

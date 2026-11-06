@@ -8,7 +8,12 @@
     <title>Journey AR</title>
   </head>
   <body>
+    <video id="video" playsinline muted></video>
     <canvas id="scene"></canvas>
+    <div id="controls">
+      <p id="status" role="status"></p>
+      <button id="start" type="button">Старт</button>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

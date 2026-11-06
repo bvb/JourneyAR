@@ -1,4 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
+import { readFileSync, rmSync, statSync } from 'node:fs';
+import path from 'node:path';
 
 /** Opens the virtual camera, collecting page errors, console errors and failed requests. */
 async function open(page: Page): Promise<string[]> {
@@ -105,4 +107,40 @@ test('moves the camera with the presets and the fields', async ({ page }) => {
   await distance.fill('520');
   await distance.press('Enter');
   expect(await page.evaluate(() => window.__vcam!.getPose().distance)).toBe(520);
+});
+
+test('records a clip with the ground truth of every frame', async ({ page }) => {
+  await open(page);
+  const saved = await page.evaluate(async () => {
+    const vcam = window.__vcam!;
+    await vcam.setPage('architecture');
+    vcam.startRecording();
+    const start = performance.now();
+    await new Promise<void>((resolve) => {
+      const step = () => {
+        const t = (performance.now() - start) / 1000;
+        vcam.setPose({ distance: 350, tilt: 20, azimuth: -20 + 30 * t, roll: 0 });
+        if (t < 1.5) requestAnimationFrame(step);
+        else resolve();
+      };
+      step();
+    });
+    return vcam.stopRecording('e2e-recording');
+  });
+  expect(saved.frames).toBeGreaterThan(20);
+  expect(saved.seconds).toBeGreaterThan(1.2);
+
+  // Saved by the dev server next to its ground truth; removed again so the test leaves no trace.
+  const root = path.resolve('..');
+  const video = path.join(root, saved.path);
+  const truth = video.replace(/\.webm$/, '.json');
+  try {
+    expect(statSync(video).size).toBeGreaterThan(10_000);
+    const samples = JSON.parse(readFileSync(truth, 'utf8')).samples as { modelView: number[] }[];
+    expect(samples.length).toBe(saved.frames);
+    expect(samples[0]!.modelView).toHaveLength(16);
+  } finally {
+    rmSync(video, { force: true });
+    rmSync(truth, { force: true });
+  }
 });

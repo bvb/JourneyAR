@@ -4,3 +4,5 @@ export * from './api';
 export * from './pages';
 export * from './pose';
 export * from './virtual-camera';
+export * from './recorder';
+export * from './webrtc';

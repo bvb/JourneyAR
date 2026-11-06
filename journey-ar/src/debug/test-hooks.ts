@@ -6,6 +6,11 @@ export interface JourneyTestHooks {
   webglVersion: 1 | 2;
   framesRendered: number;
   source: FrameSourceConfig;
+  /** State of the frame source: idle until Start, running while frames play. */
+  sourceState: 'idle' | 'starting' | 'running' | 'error';
+  /** Video frames presented so far, and the size of the last one. */
+  videoFrames: number;
+  videoSize: [number, number] | null;
 }
 
 declare global {

@@ -19,11 +19,23 @@ export default defineConfig({
     // Fallback: the isolated Chromium build bundled with Playwright.
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: BASE_URL,
-    ignoreHTTPSErrors: true,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  // The app, and the virtual camera for the WebRTC source (its recordings go to tools/.out).
+  webServer: [
+    {
+      command: 'npm run dev',
+      url: BASE_URL,
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      command: 'npm run dev',
+      cwd: '../journey-virtual-book-camera',
+      url: 'https://localhost:5174',
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      env: { VCAM_RECORDINGS_DIR: '../tools/.out/recordings-e2e' },
+    },
+  ],
 });

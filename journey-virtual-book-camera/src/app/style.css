@@ -125,6 +125,26 @@ pre.info {
   white-space: pre;
 }
 
+.row.record {
+  grid-template-columns: 1fr auto;
+}
+
+input[type='text'] {
+  font: inherit;
+  color: inherit;
+  background: #1b1b1b;
+  border: 1px solid #444;
+  border-radius: 3px;
+  padding: 2px 6px;
+  min-width: 0;
+}
+
+#panel.recording select,
+#panel.recording .frame-settings {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .hint {
   margin-top: 16px;
   color: #888;
