@@ -25,6 +25,8 @@
 - `npm run unity:render` — эталонные рендеры каждого таргета в `tools/.out/reference/`.
 - `npm run unity:export` — экспорт каждого таргета в GLB (`tools/.out/export/`) с отчётом `export-report.json`.
 - `npm run gltf:inspect` — gltf-validator + сверка GLB с отчётом Unity.
+- `npm run scenes:compare` — рендер каждой сцены в three.js (Edge) рядом с эталоном Unity → `tools/.out/compare/<id>.png`. Вручную: `https://localhost:5173/scene-preview.html?scene=<id>&t=<сек>` (только dev-сервер).
+- Конвейер целиком: `unity:fix` → `unity:check` → `unity:render` → `unity:export` → `gltf:inspect` → `scenes:compare` (Unity закрыт).
 
 ## Правила
 

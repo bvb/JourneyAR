@@ -23,6 +23,7 @@
     "unity:render": "npm run unity:render -w tools",
     "unity:export": "npm run unity:export -w tools",
     "gltf:inspect": "npm run gltf:inspect -w tools",
+    "scenes:compare": "npm run compare -w journey-ar",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "devDependencies": {

@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityGLTF;
+using static Journey.UnityExport.Targets;
 
 namespace Journey.UnityExport
 {
@@ -24,8 +25,6 @@ namespace Journey.UnityExport
     /// </summary>
     public static class SceneExporter
     {
-        private const string ScenePath = "Assets/Scene/_Main.unity";
-
         // Plugins kept enabled; everything else UnityGLTF offers stays off for a predictable output.
         private static readonly string[] EnabledPlugins = { "LightsPunctualExport", "MaterialExtensionsExport" };
 
@@ -78,15 +77,13 @@ namespace Journey.UnityExport
             var outDir = CommandLine.GetOutputDirectory("export");
             var only = CommandLine.GetOption("-journeyTargets")?.Split(',');
 
-            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            var targets = scene.GetRootGameObjects().Where(r => r.name.StartsWith("IT_")).OrderBy(r => r.name);
+            var scene = EditorSceneManager.OpenScene(Targets.ScenePath, OpenSceneMode.Single);
 
             var reports = new List<TargetReport>();
             var failed = false;
-            foreach (var target in targets)
+            foreach (var target in Targets.Find(scene))
             {
-                var (trackable, aspect) = ReadTrackable(target);
-                var id = trackable.ToLowerInvariant();
+                var (trackable, id, aspect) = Targets.Describe(target);
                 if (only != null && !only.Contains(id)) continue;
                 try
                 {
@@ -104,7 +101,7 @@ namespace Journey.UnityExport
             Debug.Log($"[Journey] export {(failed ? "FAILED" : "done")}: {reports.Count} targets; report: {reportFile}");
 
             if (Application.isBatchMode) EditorApplication.Exit(failed ? 1 : 0);
-            else EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            else EditorSceneManager.OpenScene(Targets.ScenePath, OpenSceneMode.Single);
         }
 
         private static TargetReport Export(GameObject target, string trackable, string id, float aspect, string outDir)
@@ -170,10 +167,6 @@ namespace Journey.UnityExport
             };
         }
 
-        // Unity 4 meshes store submeshes as triangle strips (topology 1, no longer in the public
-        // MeshTopology enum). Unity still renders them, but glTF export needs triangle lists.
-        private const int TriangleStripTopology = 1;
-
         /// <summary>
         /// Replaces meshes of the subtree that glTF cannot take as they are with in-memory copies:
         /// triangle strips become triangle lists, non-unit normals are normalized.
@@ -221,20 +214,6 @@ namespace Journey.UnityExport
             return (strips, normals);
         }
 
-        /// <summary>Triangle list from strip indices: odd triangles swap winding, degenerate ones are dropped.</summary>
-        private static int[] StripToTriangles(int[] strip)
-        {
-            var triangles = new List<int>(Math.Max(0, strip.Length - 2) * 3);
-            for (var i = 0; i + 2 < strip.Length; i++)
-            {
-                int a = strip[i], b = strip[i + 1], c = strip[i + 2];
-                if (a == b || b == c || a == c) continue;
-                if ((i & 1) == 0) triangles.AddRange(new[] { a, b, c });
-                else triangles.AddRange(new[] { b, a, c });
-            }
-            return triangles.ToArray();
-        }
-
         /// <summary>Triangles drawn by the active renderers of the subtree (after strip conversion).</summary>
         private static int CountTriangles(IEnumerable<Transform> roots)
         {
@@ -269,22 +248,6 @@ namespace Journey.UnityExport
                         .ToArray(),
                 };
             });
-        }
-
-        /// <summary>Trackable name and aspect ratio from the (stubbed) Vuforia ImageTargetBehaviour.</summary>
-        private static (string name, float aspect) ReadTrackable(GameObject target)
-        {
-            foreach (var behaviour in target.GetComponents<MonoBehaviour>().Where(b => b != null))
-            {
-                var serialized = new SerializedObject(behaviour);
-                var name = serialized.FindProperty("mTrackableName");
-                if (name != null && !string.IsNullOrEmpty(name.stringValue))
-                {
-                    var aspect = serialized.FindProperty("mAspectRatio");
-                    return (name.stringValue, aspect?.floatValue ?? 0f);
-                }
-            }
-            throw new InvalidOperationException($"{target.name} has no trackable name");
         }
 
         private static JObject DescribeMaterial(Material material)
@@ -381,10 +344,5 @@ namespace Journey.UnityExport
                 default: return null;
             }
         }
-
-        private static JArray ToArray(Color c) => new JArray(c.r, c.g, c.b, c.a);
-        private static JArray ToArray(Vector2 v) => new JArray(v.x, v.y);
-        private static JArray ToArray(Vector3 v) => new JArray(v.x, v.y, v.z);
-        private static JArray ToArray(Vector4 v) => new JArray(v.x, v.y, v.z, v.w);
     }
 }
