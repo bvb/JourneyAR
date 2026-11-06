@@ -1,6 +1,8 @@
 // Rewritten for Unity 6: the ripped file contained only compiled GLES programs, which
 // cannot run on D3D11. Reconstructed from that GLES code: albedo = _MainTex * _Color *
-// _Detail(second UV set) * 2, Lambert lighting with the Unity 4 "* 2" light factor.
+// _Detail(second UV set) * 2. Lighting is the regular Lambert model, like every other legacy
+// lit shader renders in Unity 6 (the original Unity 4 build doubled the light; the AR app
+// applies such a factor globally if needed).
 Shader "MyShaders/Diffuse Detail 2 UV sets" {
 Properties {
  _Color ("Main Color", Color) = (1,1,1,1)
@@ -12,7 +14,7 @@ SubShader {
  LOD 250
 
  CGPROGRAM
- #pragma surface surf LegacyLambert
+ #pragma surface surf Lambert
 
  sampler2D _MainTex;
  sampler2D _Detail;
@@ -22,14 +24,6 @@ SubShader {
   float2 uv_MainTex;
   float2 uv2_Detail;
  };
-
- half4 LightingLegacyLambert (SurfaceOutput s, half3 lightDir, half atten) {
-  half ndotl = max(0, dot(s.Normal, lightDir));
-  half4 c;
-  c.rgb = s.Albedo * _LightColor0.rgb * (ndotl * atten * 2.0);
-  c.a = s.Alpha;
-  return c;
- }
 
  void surf (Input IN, inout SurfaceOutput o) {
   fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * _Color;

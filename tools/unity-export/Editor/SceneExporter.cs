@@ -132,11 +132,25 @@ namespace Journey.UnityExport
 
             var context = new ExportContext(settings)
             {
-                AfterMaterialExport = (_, _, material, node) => node.Extras = DescribeMaterial(material),
+                AfterMaterialExport = (exporter, _, material, node) => node.Extras = DescribeMaterial(exporter, material),
                 AfterNodeExport = (_, _, transform, node) =>
                 {
                     var extras = DescribeComponents(transform);
                     if (extras != null) node.Extras = extras;
+                },
+                // Scene-wide lighting the materials were designed for (raw gamma-space values).
+                AfterSceneExport = (_, gltf) =>
+                {
+                    foreach (var gltfScene in gltf.Scenes)
+                    {
+                        gltfScene.Extras = new JObject
+                        {
+                            ["unityColorSpace"] = QualitySettings.activeColorSpace.ToString(),
+                            ["ambientMode"] = RenderSettings.ambientMode.ToString(),
+                            ["ambient"] = ToArray(RenderSettings.ambientLight),
+                            ["fog"] = RenderSettings.fog,
+                        };
+                    }
                 },
             };
 
@@ -250,7 +264,12 @@ namespace Journey.UnityExport
             });
         }
 
-        private static JObject DescribeMaterial(Material material)
+        /// <summary>
+        /// Original shader and all its properties. Every texture property is also exported into the
+        /// GLB (lightmaps, detail and normal maps included), with its glTF texture index, Unity
+        /// tiling/offset and wrap modes — UnityGLTF itself writes no wrap modes.
+        /// </summary>
+        private static JObject DescribeMaterial(GLTFSceneExporter exporter, Material material)
         {
             var shader = material.shader;
             var properties = new JObject();
@@ -274,11 +293,23 @@ namespace Journey.UnityExport
                         break;
                     case UnityEngine.Rendering.ShaderPropertyType.Texture:
                         var texture = material.GetTexture(name);
-                        properties[name] = texture == null ? null : new JObject
+                        if (texture == null)
+                        {
+                            properties[name] = null;
+                            break;
+                        }
+                        var slot = name == "_BumpMap"
+                            ? GLTFSceneExporter.TextureMapType.Normal
+                            : GLTFSceneExporter.TextureMapType.BaseColor;
+                        properties[name] = new JObject
                         {
                             ["texture"] = texture.name,
+                            ["index"] = exporter.ExportTextureInfo(texture, slot)?.Index?.Id,
                             ["scale"] = ToArray(material.GetTextureScale(name)),
                             ["offset"] = ToArray(material.GetTextureOffset(name)),
+                            ["wrapU"] = texture.wrapModeU.ToString(),
+                            ["wrapV"] = texture.wrapModeV.ToString(),
+                            ["filter"] = texture.filterMode.ToString(),
                         };
                         break;
                 }
@@ -296,6 +327,22 @@ namespace Journey.UnityExport
         private static JObject DescribeComponents(Transform transform)
         {
             var components = new JArray();
+            foreach (var light in transform.GetComponents<Light>())
+            {
+                // Range in the target's local frame (the target root is scaled to its width).
+                var targetScale = transform.root.lossyScale.x;
+                components.Add(new JObject
+                {
+                    ["type"] = "Light",
+                    ["enabled"] = light.enabled,
+                    ["lightType"] = light.type.ToString(),
+                    ["color"] = ToArray(light.color),
+                    ["intensity"] = light.intensity,
+                    ["range"] = light.range / targetScale,
+                    ["spotAngle"] = light.spotAngle,
+                    ["renderMode"] = light.renderMode.ToString(),
+                });
+            }
             foreach (var audio in transform.GetComponents<AudioSource>())
             {
                 components.Add(new JObject

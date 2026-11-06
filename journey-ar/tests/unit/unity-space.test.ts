@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { unityToThree } from '../../src/scenes/unity-space';
+import { unityOffsetToThree, unityToThree } from '../../src/scenes/unity-space';
 
 describe('unityToThree', () => {
   it('mirrors the X axis like UnityGLTF', () => {
@@ -12,5 +12,18 @@ describe('unityToThree', () => {
     expect(corner.y).toBe(0);
     expect(corner.z).toBeCloseTo(-0.367);
     expect(unityToThree([0, 1, 0]).y).toBe(1);
+  });
+});
+
+describe('unityOffsetToThree', () => {
+  // Values UnityGLTF itself wrote into KHR_texture_transform for the exported materials.
+  it('matches UnityGLTF for tiled textures', () => {
+    expect(unityOffsetToThree([0, 0], [10, 10])).toEqual([0, -9]);
+    expect(unityOffsetToThree([0, 0], [15, 15])).toEqual([0, -14]);
+  });
+
+  it('keeps U offsets and mirrors V offsets', () => {
+    expect(unityOffsetToThree([-0.2916667, 0], [1, 1])).toEqual([-0.2916667, 0]);
+    expect(unityOffsetToThree([0, 0.25], [1, 1])).toEqual([0, -0.25]);
   });
 });

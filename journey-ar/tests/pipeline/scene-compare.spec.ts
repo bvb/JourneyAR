@@ -31,10 +31,22 @@ for (const target of reference?.targets ?? []) {
 
     mkdirSync(COMPARE, { recursive: true });
     await page.screenshot({ path: `${COMPARE}${target.id}.png`, fullPage: true });
+    const difference = state?.difference;
+    if (difference) {
+      console.log(
+        `${target.id}: mean difference ${difference.meanAbs.toFixed(1)}/255, ` +
+          `${(difference.over32 * 100).toFixed(1)}% of pixels differ by more than 32`,
+      );
+    }
 
     expect(state?.error).toBeUndefined();
     expect(state?.ready).toBe(true);
     expect(state?.triangles).toBeGreaterThan(0);
+    expect(state?.unknownShaders).toEqual([]);
     expect(errors).toEqual([]);
+    // All scenes measured at 0.9–2.6/255 mean and at most 0.3% strongly differing pixels when the
+    // material conversion was finished; these limits catch regressions, not noise.
+    expect(difference?.meanAbs).toBeLessThan(4);
+    expect(difference?.over32).toBeLessThan(0.01);
   });
 }

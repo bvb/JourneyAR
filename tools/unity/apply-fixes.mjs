@@ -3,7 +3,8 @@
 // 1. Removes ripped files that no longer compile and are not used by anything.
 // 2. Copies rewritten files from ./overlay over the broken originals. Only existing files
 //    are replaced, so their .meta files (and the GUIDs materials refer to) stay intact.
-// 3. Registers the local editor package tools/unity-export and UnityGLTF in
+// 3. Restores the "use the shader's render queue" default on the ripped materials.
+// 4. Registers the local editor package tools/unity-export and UnityGLTF in
 //    Packages/manifest.json.
 //
 // Every file is backed up to tools/.out/unity-backup/ before it is removed or replaced.
@@ -100,6 +101,24 @@ for (const source of walk(OVERLAY)) {
     console.log(`replaced  ${rel(target)}`);
   }
 }
+
+// The ripped materials all carry m_CustomRenderQueue: 0, which Unity 6 takes literally (queue 0,
+// so transparent materials render in the opaque pass, unsorted). Editor-made materials default
+// to -1 ("use the shader's queue"); restore that.
+let queueFixes = 0;
+for (const file of walk(path.join(UNITY_PROJECT, 'Assets'))) {
+  if (!file.endsWith('.mat')) continue;
+  const text = readFileSync(file, 'utf8');
+  const fixed = text.replace(/^(\s*m_CustomRenderQueue:) 0$/m, '$1 -1');
+  if (fixed !== text) {
+    backup(file);
+    writeFileSync(file, fixed);
+    queueFixes += 1;
+  }
+}
+console.log(
+  `${queueFixes ? 'updated  ' : 'unchanged'} render queue of ${queueFixes} materials (0 -> -1)`,
+);
 
 const manifestPath = path.join(UNITY_PROJECT, 'Packages', 'manifest.json');
 const originalManifest = readFileSync(manifestPath, 'utf8');

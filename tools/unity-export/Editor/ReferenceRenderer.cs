@@ -31,6 +31,9 @@ namespace Journey.UnityExport
         {
             var outDir = CommandLine.GetOutputDirectory("reference");
             var time = float.Parse(CommandLine.GetOption("-journeyTime") ?? "0.5", CultureInfo.InvariantCulture);
+            // Debugging aids: render only some targets, hide renderers by material name.
+            var only = CommandLine.GetOption("-journeyTargets")?.Split(',');
+            var hidden = CommandLine.GetOption("-journeyHide")?.Split(',') ?? new string[0];
 
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             var roots = scene.GetRootGameObjects();
@@ -43,12 +46,19 @@ namespace Journey.UnityExport
             }
 
             var descriptions = new JArray();
+            foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (renderer.sharedMaterials.Any(m => m != null && hidden.Contains(m.name))) renderer.enabled = false;
+            }
+
             foreach (var target in targets)
             {
+                var (trackable, id, _) = Describe(target);
+                if (only != null && !only.Contains(id)) continue;
                 foreach (var other in targets) other.SetActive(other == target);
                 SampleAnimations(target, time);
+                ApplyUvScrolling(target, time);
 
-                var (trackable, id, _) = Describe(target);
                 var description = Render(target, Path.Combine(outDir, $"{id}.png"));
                 description["id"] = id;
                 description["trackable"] = trackable;
@@ -96,6 +106,31 @@ namespace Journey.UnityExport
             }
         }
 
+        /// <summary>
+        /// What the (stubbed) AnimatedUVs_* scripts do at runtime after <paramref name="time"/> seconds:
+        /// texture offset = rate * time on a per-renderer copy of the material. Scripts do not run
+        /// in edit mode, so the reference applies it here; the assets are not touched.
+        /// </summary>
+        private static void ApplyUvScrolling(GameObject target, float time)
+        {
+            foreach (var behaviour in target.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour == null || !behaviour.enabled || !behaviour.GetType().Name.StartsWith("AnimatedUVs")) continue;
+                var renderer = behaviour.GetComponent<Renderer>();
+                if (renderer == null) continue;
+                var fields = new SerializedObject(behaviour);
+                var index = fields.FindProperty("materialIndex").intValue;
+                var rate = fields.FindProperty("uvAnimationRate").vector2Value;
+                var textureName = fields.FindProperty("textureName").stringValue;
+                var materials = renderer.sharedMaterials;
+                if (index < 0 || index >= materials.Length || materials[index] == null) continue;
+                var copy = new Material(materials[index]);
+                copy.SetTextureOffset(textureName, rate * time);
+                materials[index] = copy;
+                renderer.sharedMaterials = materials;
+            }
+        }
+
         /// <summary>Renders the target to a PNG and returns its camera in the target's local frame.</summary>
         private static JObject Render(GameObject target, string file)
         {
@@ -114,6 +149,9 @@ namespace Journey.UnityExport
             {
                 var camera = cameraObject.AddComponent<Camera>();
                 camera.fieldOfView = FieldOfView;
+                // Like the phones the content was made for: an 8-bit buffer, where colours above 1
+                // (the "double" combiners) clip before blending. HDR would let them blow out.
+                camera.allowHDR = false;
                 cameraObject.transform.position = position;
                 cameraObject.transform.LookAt(bounds.center, t.up);
                 camera.nearClipPlane = distance * 0.01f;
@@ -169,8 +207,11 @@ namespace Journey.UnityExport
                 RenderTexture.ReleaseTemporary(rt);
             }
 
+            var material = renderer != null ? renderer.sharedMaterial : null;
             return new JObject
             {
+                ["shader"] = material != null ? material.shader.name : null,
+                ["color"] = material != null && material.HasProperty("_Color") ? ToArray(material.color) : null,
                 ["vertices"] = new JArray(mesh.vertices.Select(ToArray)),
                 ["uv"] = new JArray(mesh.uv.Select(ToArray)),
                 ["triangles"] = new JArray(Enumerable.Range(0, mesh.subMeshCount).SelectMany(i => Triangles(mesh, i))),

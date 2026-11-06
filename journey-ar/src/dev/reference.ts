@@ -17,6 +17,8 @@ export interface ReferenceTarget {
   time: number;
   camera: { fov: number; near: number; far: number; position: Vec3; target: Vec3; up: Vec3 };
   page: {
+    shader: string | null;
+    color: number[] | null;
     vertices: Vec3[];
     uv: [number, number][];
     triangles: number[];
@@ -46,6 +48,13 @@ export interface ScenePreviewState {
   triangles: number;
   drawCalls: number;
   animations: { name: string; duration: number }[];
+  /** Unity shaders without a dedicated conversion in unity-materials.ts. */
+  unknownShaders: string[];
+  /**
+   * Pixel difference to the Unity reference over non-background pixels: mean absolute
+   * difference (0-255) and the share of pixels differing by more than 32.
+   */
+  difference: { meanAbs: number; over32: number };
 }
 
 declare global {

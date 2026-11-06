@@ -34,6 +34,10 @@
 - Ассеты в `journey-ar/assets` не правятся вручную — только скриптами из `tools/` (кроме `scenes.json`, который подстраивается через debug-режим).
 - `unity-data-project` (Unity 6.6, 6000.6.8f1) вне git: все правки в нём вносятся только через `tools/unity/apply-fixes.mjs` (удаления, оверлей `tools/unity/overlay/`, манифест), чтобы их можно было повторить на чистой копии оригинала. Код экспортёра живёт в `tools/unity-export` (локальный UPM-пакет, `.meta`-файлы коммитятся).
 - Fixed-function шейдеры оригинала работают в Unity 6 — не переписывать их: эмуляция Unity — эталон оригинального вида.
+- AR-контент рендерится в gamma-режиме Unity: перед первым кадром `configureLegacyRendering(renderer, camera)`, текстуры сцен — `NoColorSpace`, цвета из Unity — как есть (`new Color(r, g, b)`), без `SRGBColorSpace`.
+- Материалы сцен строятся только в `src/scenes/unity-materials.ts` по `extras.unityShader`. Любое изменение материалов, экспортёра или рендера проверять `npm run scenes:compare` (пороги: средняя разница < 4/255, < 1 % пикселей > 32).
+- Эталоны Unity рендерятся без HDR намеренно (как 8-битный буфер телефона).
+- Отладка в `scene-preview.html`: `?t=` (время), `?hide=<материалы>`, `?ref=<папка эталонов в tools/.out>`; в Unity — `-journeyTargets`, `-journeyHide`, `-journeyTime`, `-journeyOut` (аргументы `node tools/unity/run-unity.mjs`).
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
 - Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`).
 - TypeScript закреплён на 6.0.x: typescript-eslint пока поддерживает только `<6.1`.
