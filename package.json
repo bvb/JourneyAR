@@ -1,0 +1,35 @@
+{
+  "name": "artbook-project",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "journey-ar",
+    "journey-virtual-book-camera",
+    "tools"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w journey-ar",
+    "dev:vcam": "npm run dev -w journey-virtual-book-camera",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspaces --if-present",
+    "e2e": "npm run e2e -w journey-ar",
+    "check-env": "npm run check-env -w tools",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
+  },
+  "allowScripts": {
+    "ffmpeg-static@5.3.0": true
+  }
+}
