@@ -26,12 +26,15 @@
 - `npm run unity:export` — экспорт каждого таргета в GLB (`tools/.out/export/`) с отчётом `export-report.json`.
 - `npm run gltf:inspect` — gltf-validator + сверка GLB с отчётом Unity.
 - `npm run scenes:compare` — рендер каждой сцены в three.js (Edge) рядом с эталоном Unity → `tools/.out/compare/<id>.png`. Вручную: `https://localhost:5173/scene-preview.html?scene=<id>&t=<сек>` (только dev-сервер).
-- Конвейер целиком: `unity:fix` → `unity:check` → `unity:render` → `unity:export` → `gltf:inspect` → `scenes:compare` (Unity закрыт).
+- `npm run assets:publish` — GLB и MP3 в `journey-ar/assets`, генерация `scenes.json`; привязка сцен к страницам — поиском текстур таргетов Vuforia на сканах (превью в `tools/.out/anchors/`). Уже записанные привязки сохраняются, пересчёт: `npm run assets:publish -- --reset-anchors`.
+- Конвейер целиком: `unity:fix` → `unity:check` → `unity:render` → `unity:export` → `gltf:inspect` → `scenes:compare` → `assets:publish` (Unity закрыт).
 
 ## Правила
 
 - Перед коммитом: `npm run check` и `npm run e2e` зелёные.
-- Ассеты в `journey-ar/assets` не правятся вручную — только скриптами из `tools/` (кроме `scenes.json`, который подстраивается через debug-режим).
+- Ассеты в `journey-ar/assets` не правятся вручную — только скриптами из `tools/` (`assets:publish`); в `scenes.json` вручную/через debug-режим подстраиваются только `anchor`. Схема `scenes.json` — `journey-ar/src/scenes/manifest.ts`.
+- Система страницы — мм, начало в центре страницы, X вправо, Y к верху страницы, Z из страницы. Сцены в GLB — в системе таргета (ширина таргета = 1); перевод — `anchorMatrix()`.
+- page166 (daqri) пока не используется, оптимизация GLB отложена до готового приложения (см. решения в плане).
 - `unity-data-project` (Unity 6.6, 6000.6.8f1) вне git: все правки в нём вносятся только через `tools/unity/apply-fixes.mjs` (удаления, оверлей `tools/unity/overlay/`, манифест), чтобы их можно было повторить на чистой копии оригинала. Код экспортёра живёт в `tools/unity-export` (локальный UPM-пакет, `.meta`-файлы коммитятся).
 - Fixed-function шейдеры оригинала работают в Unity 6 — не переписывать их: эмуляция Unity — эталон оригинального вида.
 - AR-контент рендерится в gamma-режиме Unity: перед первым кадром `configureLegacyRendering(renderer, camera)`, текстуры сцен — `NoColorSpace`, цвета из Unity — как есть (`new Color(r, g, b)`), без `SRGBColorSpace`.

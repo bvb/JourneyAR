@@ -8,7 +8,8 @@
     "unity:check": "node unity/run-unity.mjs Journey.UnityExport.ProjectCheck.Run",
     "unity:render": "node unity/run-unity.mjs Journey.UnityExport.ReferenceRenderer.RenderAll",
     "unity:export": "node unity/run-unity.mjs Journey.UnityExport.SceneExporter.ExportAll",
-    "gltf:inspect": "node gltf/inspect-export.mjs"
+    "gltf:inspect": "node gltf/inspect-export.mjs",
+    "assets:publish": "node assets/publish.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.1",

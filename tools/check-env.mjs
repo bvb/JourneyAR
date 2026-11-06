@@ -2,7 +2,14 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { BLENDER_EXE, BOOK_PAGES, FFMPEG, UNITY_EXE, UNITY_PROJECT } from './config.mjs';
+import {
+  BLENDER_EXE,
+  BOOK_PAGES,
+  FFMPEG,
+  UNITY_EXE,
+  UNITY_PROJECT,
+  VUFORIA_DATASET,
+} from './config.mjs';
 
 const EXPECTED_UNITY = '6000.6.8f1';
 let failed = false;
@@ -38,5 +45,10 @@ try {
 }
 
 report(existsSync(BOOK_PAGES), 'Book pages', BOOK_PAGES);
+report(
+  existsSync(VUFORIA_DATASET.xml) && existsSync(VUFORIA_DATASET.dat),
+  'Vuforia dataset of the original app',
+  VUFORIA_DATASET.dat,
+);
 
 process.exitCode = failed ? 1 : 0;
