@@ -15,9 +15,12 @@ const api = createVcamApi(vcam, recorder);
 window.__vcam = api;
 
 // The frames go to the app over WebRTC through the relay of its dev server (`?signal=` to
-// point elsewhere); the app asks for them with `?source=webrtc`.
-const signalUrl =
-  new URLSearchParams(window.location.search).get('signal') ?? defaultSignalUrl(window.location);
+// point elsewhere); the app asks for them with `?source=webrtc`. `?room=` pairs one camera with
+// one app when several run at once (parallel tests); the app takes the same parameter.
+const params = new URLSearchParams(window.location.search);
+const signal = new URL(params.get('signal') ?? defaultSignalUrl(window.location));
+if (params.has('room')) signal.searchParams.set('room', params.get('room')!);
+const signalUrl = signal.href;
 const sender = new WebRtcSender(vcam, signalUrl);
 
 buildPanel(panel, vcam);

@@ -9,7 +9,11 @@ import { releaseStream } from './release-stream';
  */
 export function webrtcSource(): FrameSource {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const url = `${protocol}://${window.location.host}/__signal`;
+  const signal = new URL(`${protocol}://${window.location.host}/__signal`);
+  // `?room=` pairs this app with the virtual camera opened with the same room.
+  const room = new URLSearchParams(window.location.search).get('room');
+  if (room) signal.searchParams.set('room', room);
+  const url = signal.href;
   let receiver: WebRtcReceiver | null = null;
   let video: HTMLVideoElement | null = null;
   return {

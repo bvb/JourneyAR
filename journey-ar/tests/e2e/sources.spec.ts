@@ -1,16 +1,8 @@
 import { type Page, expect, test } from '@playwright/test';
+import { collectErrors, uniqueRoom } from './helpers';
 
 const VCAM_URL = 'https://localhost:5174/';
 const RECORDING = 'vcam-architecture-orbit';
-
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
-  });
-  return errors;
-}
 
 /** Mean luminance (0-255) of what the app's video element currently shows. */
 function videoLuminance(page: Page): Promise<number> {
@@ -73,13 +65,14 @@ test('plays a recording with ?source=video', async ({ page }) => {
 
 test('receives the virtual camera over WebRTC with ?source=webrtc', async ({ browser }) => {
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const room = uniqueRoom('webrtc');
   const vcam = await context.newPage();
-  await vcam.goto(VCAM_URL);
+  await vcam.goto(`${VCAM_URL}?room=${room}`);
   await vcam.waitForFunction(() => window.__vcam?.ready === true);
 
   const app = await context.newPage();
   const errors = collectErrors(app);
-  await app.goto('https://localhost:5173/?source=webrtc');
+  await app.goto(`https://localhost:5173/?source=webrtc&room=${room}`);
   await startSource(app);
   expect(await app.evaluate(() => window.__journey?.videoSize)).toEqual([640, 480]);
 

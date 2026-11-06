@@ -6,6 +6,8 @@ const BASE_URL = `https://localhost:${PORT}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  // WebGL pages: more workers only slow them all down.
+  workers: 4,
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {

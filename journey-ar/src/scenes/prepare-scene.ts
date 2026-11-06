@@ -39,6 +39,8 @@ export interface PreparedScene {
   unknownShaders: string[];
   /** Advances script-driven effects (UV scrolling) by `deltaSeconds`. */
   update(deltaSeconds: number): void;
+  /** Puts script-driven effects back to their start (time 0). */
+  restart(): void;
 }
 
 function componentsOf(object: Object3D): UnityComponent[] {
@@ -192,17 +194,24 @@ export async function prepareUnityScene(
 
   const scrolls = collectUvScrolls(gltf);
   let elapsed = 0;
+  const apply = () => {
+    for (const { texture, rate, scale } of scrolls) {
+      // Repeat wrapping: only the fractional part of the offset matters.
+      const offset: [number, number] = [(rate[0] * elapsed) % 1, (rate[1] * elapsed) % 1];
+      texture.offset.fromArray(unityOffsetToThree(offset, scale));
+    }
+  };
   return {
     root,
     animations: gltf.animations,
     unknownShaders,
     update(deltaSeconds: number) {
       elapsed += deltaSeconds;
-      for (const { texture, rate, scale } of scrolls) {
-        // Repeat wrapping: only the fractional part of the offset matters.
-        const offset: [number, number] = [(rate[0] * elapsed) % 1, (rate[1] * elapsed) % 1];
-        texture.offset.fromArray(unityOffsetToThree(offset, scale));
-      }
+      apply();
+    },
+    restart() {
+      elapsed = 0;
+      apply();
     },
   };
 }

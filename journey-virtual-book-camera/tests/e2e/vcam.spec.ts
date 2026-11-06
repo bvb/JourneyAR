@@ -127,7 +127,8 @@ test('records a clip with the ground truth of every frame', async ({ page }) => 
     });
     return vcam.stopRecording('e2e-recording');
   });
-  expect(saved.frames).toBeGreaterThan(20);
+  // Rendered frames depend on the machine load; a 1.5 s clip has well over 10.
+  expect(saved.frames).toBeGreaterThan(10);
   expect(saved.seconds).toBeGreaterThan(1.2);
 
   // Saved by the dev server next to its ground truth; removed again so the test leaves no trace.

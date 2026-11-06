@@ -46,10 +46,11 @@
 - Эталоны Unity рендерятся без HDR намеренно (как 8-битный буфер телефона).
 - Отладка в `scene-preview.html`: `?t=` (время), `?hide=<материалы>`, `?ref=<папка эталонов в tools/.out>`; в Unity — `-journeyTargets`, `-journeyHide`, `-journeyTime`, `-journeyOut` (аргументы `node tools/unity/run-unity.mjs`).
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
-- Трекинг: `src/tracking/` — jsartoolkit-nft в воркере (файлы воркера раздаются по `/nft-worker/` плагином в `vite.config.ts`), кадр 640 px по длинной стороне, одна активная страница, потеря на первом кадре без страницы, фильтр `native`. Параметры отладки: `?fov=<гориз. угол>` (по умолчанию 63°), `?filter=native|none|oneeuro`. Состояние трекера — `window.__journey.tracking` (страница, поза, события found/lost); метрики по точной позе — `tests/e2e/tracking.spec.ts`.
+- Трекинг: `src/tracking/` — jsartoolkit-nft в воркере (файлы воркера раздаются по `/nft-worker/` плагином в `vite.config.ts`), кадр 640 px по длинной стороне, одна активная страница, потеря на первом кадре без страницы, фильтр `native`. Параметры отладки: `?fov=<гориз. угол>` (по умолчанию 63°), `?filter=native|none|oneeuro`, `?debug` (контур страницы и оси).
+- Сцены: `src/scenes/ar-scenes.ts` — якорь (поза трекера) → `anchorMatrix(scene.anchor)` → GLB; ленивая загрузка, предзагрузка в фоне после старта трекера, перезапуск анимаций при каждом обнаружении, скрытие в кадр потери. Состояние — `window.__journey.scenes`. Состояние трекера — `window.__journey.tracking` (страница, поза, события found/lost); метрики по точной позе — `tests/e2e/tracking.spec.ts`.
 - Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`), запускаются кнопкой «Старт»:
   - `canvas` — виртуальная камера внутри приложения, управление через `window.__vcam`;
-  - `webrtc` — поток из открытой vcam (`npm run dev:vcam`) через ретранслятор `/__signal` dev-сервера приложения (работает и на телефоне в LAN);
+  - `webrtc` — поток из открытой vcam (`npm run dev:vcam`) через ретранслятор `/__signal` dev-сервера приложения (работает и на телефоне в LAN); `?room=<имя>` у обоих разводит несколько пар (тесты);
   - `video&src=/__recordings/<имя>.webm` — запись из `journey-ar/tests/recordings` (записи делает vcam: кнопка «Запись» или `__vcam.startRecording()`/`stopRecording(имя)`, рядом `<имя>.json` с точной позой каждого кадра).
 - TypeScript закреплён на 6.0.x: typescript-eslint пока поддерживает только `<6.1`.
 - three.js закреплён на точной версии (0.187.0) вместе с `@types/three`.

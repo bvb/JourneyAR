@@ -12,6 +12,8 @@ import {
 import { parseFrameSource } from './config/frame-source';
 import { parseTrackingOptions } from './config/tracking-options';
 import { installTestHooks } from './debug/test-hooks';
+import { ArScenes } from './scenes/ar-scenes';
+import { configureLegacyRendering } from './scenes/legacy-rendering';
 import { loadScenesManifest } from './scenes/manifest';
 import { type FrameSource, createFrameSource } from './sources/frame-source';
 import './style.css';
@@ -21,6 +23,8 @@ const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!canvas) throw new Error('Canvas #scene not found');
 
 const source = parseFrameSource(window.location.search, import.meta.env.DEV);
+// ?debug: page outline and axes on the tracked page.
+const debug = new URLSearchParams(window.location.search).has('debug');
 const trackingOptions = parseTrackingOptions(window.location.search);
 const manifest = await loadScenesManifest(`${import.meta.env.BASE_URL}scenes.json`);
 
@@ -32,14 +36,19 @@ const scene = new Scene();
 // screen); the camera itself stays at the origin, and the anchor carries the page pose.
 const camera = new PerspectiveCamera();
 camera.matrixAutoUpdate = false;
+// The AR content is rendered like the original Unity build (gamma workflow), see CLAUDE.md.
+configureLegacyRendering(renderer, camera);
 
-// Page anchor in the page frame (mm, origin at the page centre, Y to the page top). Until the
-// AR scenes are placed on it (next step), it shows the page outline and axes.
+// Page anchor in the page frame (mm, origin at the page centre, Y to the page top), posed by
+// the tracker. It carries the AR scenes and, with ?debug, the page outline and axes.
 const anchor = new Group();
 anchor.matrixAutoUpdate = false;
 anchor.visible = false;
 const { width: pageWidth, height: pageHeight } = manifest.page;
-anchor.add(
+const debugGroup = new Group();
+debugGroup.visible = debug;
+anchor.add(debugGroup);
+debugGroup.add(
   new LineLoop(
     new BufferGeometry().setFromPoints(
       [
@@ -55,6 +64,13 @@ anchor.add(
 );
 scene.add(anchor);
 
+const status = document.querySelector<HTMLElement>('#status')!;
+const arScenes = new ArScenes(anchor, manifest.scenes, import.meta.env.BASE_URL, (error) => {
+  console.error(error);
+  status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
+});
+let preloading = false;
+
 function resize(): void {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
 }
@@ -65,18 +81,19 @@ const hooks = installTestHooks({
   ready: false,
   webglVersion: renderer.capabilities.isWebGL2 ? 2 : 1,
   framesRendered: 0,
+  trianglesRendered: 0,
   source,
   sourceState: 'idle',
   videoFrames: 0,
   videoSize: null,
   tracking: { ready: false, processed: 0, scene: null, pose: null, events: [], processMs: [] },
+  scenes: arScenes.state,
 });
 
 // Frame source: started and stopped with the button (the camera needs a user gesture, and so
 // will the audio on iOS).
 const video = document.querySelector<HTMLVideoElement>('#video')!;
 const startButton = document.querySelector<HTMLButtonElement>('#start')!;
-const status = document.querySelector<HTMLElement>('#status')!;
 let frameSource: FrameSource | null = null;
 let tracking: TrackingLoop | null = null;
 let running = false;
@@ -100,6 +117,12 @@ function startTracking(sourceInUse: FrameSource): void {
     onResult(result) {
       anchor.visible = result.pose !== null;
       if (result.pose) anchor.matrix.fromArray(result.pose);
+      arScenes.setTracked(result.scene);
+      // Preload the scenes once the tracker runs: it gets the CPU first on a phone.
+      if (!preloading) {
+        preloading = true;
+        void arScenes.preloadAll();
+      }
       if (hooks) {
         const t = hooks.tracking;
         t.ready = true;
@@ -124,6 +147,7 @@ function stopTracking(): void {
   void tracking?.dispose();
   tracking = null;
   anchor.visible = false;
+  arScenes.setTracked(null);
 }
 
 async function startSource(): Promise<void> {
@@ -161,7 +185,11 @@ const countFrame = (): void => {
 };
 video.requestVideoFrameCallback(countFrame);
 
-renderer.setAnimationLoop(() => {
+let lastTime: number | null = null;
+renderer.setAnimationLoop((time) => {
+  const deltaSeconds = lastTime === null ? 0 : (time - lastTime) / 1000;
+  lastTime = time;
+  arScenes.update(deltaSeconds);
   const tracker = tracking?.activeTracker;
   const geometry = tracking?.geometry;
   if (tracker && geometry) {
@@ -177,6 +205,8 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
   if (hooks) {
     hooks.framesRendered += 1;
+    hooks.trianglesRendered = renderer.info.render.triangles;
     hooks.ready = true;
+    hooks.scenes = arScenes.state;
   }
 });

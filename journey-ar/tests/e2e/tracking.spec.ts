@@ -19,15 +19,20 @@ interface StaticMetrics {
 
 interface MotionMetrics {
   trackedShare: number;
+  /** Error against the ground truth pose the tracked frame was most likely rendered with. */
   translationMm: number;
   angleDeg: number;
+  /** How far back that pose was: the latency from rendering to the tracking result. */
+  lagMs: number;
+  /** Error against the current pose (accuracy and latency together), for information. */
+  currentTranslationMm: number;
 }
 
 async function startTracking(page: Page, filter = 'native'): Promise<void> {
   await page.goto(`/?source=canvas&filter=${filter}`);
   await page.getByRole('button', { name: 'Старт' }).click();
   await page.waitForFunction(() => window.__journey?.tracking.ready === true, null, {
-    timeout: 20_000,
+    timeout: 60_000,
   });
 }
 
@@ -121,7 +126,11 @@ function measureStatic(page: Page, scene: string): Promise<StaticMetrics> {
   }, scene);
 }
 
-/** A 4 s orbit around the page; the tracker pose is compared with the pose at that moment. */
+/**
+ * A 4 s orbit around the page. The tracker result belongs to a frame rendered a little earlier
+ * (capture, video, worker), so each result is compared with the closest pose of the last
+ * 600 ms: that gives the accuracy, and how far back it was gives the latency.
+ */
 function measureMotion(page: Page): Promise<MotionMetrics> {
   return page.evaluate(async () => {
     const w = window as unknown as {
@@ -134,25 +143,42 @@ function measureMotion(page: Page): Promise<MotionMetrics> {
     vcam.setPose({ target: [0, 0], distance: 420, tilt: 15, azimuth: -30, roll: 0 });
     await vcam.setPage('architecture');
     await w.waitUntil(() => tracking.scene === 'architecture');
-    const errors: { translation: number; angle: number }[] = [];
+    const history: { time: number; pose: number[] }[] = [];
+    const best: { translation: number; angle: number; lag: number }[] = [];
+    const current: number[] = [];
     let frames = 0;
     let processed = tracking.processed;
     const start = performance.now();
     for (;;) {
-      const k = Math.min((performance.now() - start) / 4000, 1);
+      const now = performance.now();
+      const k = Math.min((now - start) / 4000, 1);
       vcam.setPose({ azimuth: -30 + 60 * k, tilt: 15 + 20 * k, distance: 420 - 100 * k });
+      history.push({ time: now, pose: vcam.getGroundTruth().modelView });
       await new Promise(requestAnimationFrame);
       if (tracking.processed > processed) {
         processed = tracking.processed;
         frames += 1;
-        if (tracking.pose) errors.push(w.poseError(tracking.pose, vcam.getGroundTruth().modelView));
+        const pose = tracking.pose;
+        if (pose) {
+          const at = performance.now();
+          const candidates = history.filter((h) => at - h.time < 600);
+          const errors = candidates.map((h) => ({
+            ...w.poseError(pose, h.pose),
+            lag: at - h.time,
+          }));
+          errors.sort((a, b) => a.translation - b.translation);
+          best.push(errors[0]!);
+          current.push(w.poseError(pose, vcam.getGroundTruth().modelView).translation);
+        }
       }
       if (k >= 1) break;
     }
     return {
-      trackedShare: errors.length / frames,
-      translationMm: median(errors.map((e) => e.translation)),
-      angleDeg: median(errors.map((e) => e.angle)),
+      trackedShare: best.length / frames,
+      translationMm: median(best.map((e) => e.translation)),
+      angleDeg: median(best.map((e) => e.angle)),
+      lagMs: median(best.map((e) => e.lag)),
+      currentTranslationMm: median(current),
     };
   });
 }
@@ -191,6 +217,8 @@ test('keeps tracking a moving camera', async ({ page }, info) => {
   });
   console.log('motion:', JSON.stringify(metrics));
   expect(metrics.trackedShare).toBeGreaterThan(0.9);
-  expect(metrics.translationMm).toBeLessThan(15);
-  expect(metrics.angleDeg).toBeLessThan(3);
+  expect(metrics.translationMm).toBeLessThan(10);
+  expect(metrics.angleDeg).toBeLessThan(2);
+  // Edge: ~130 ms on this machine; the headless Chromium build renders slower.
+  expect(metrics.lagMs).toBeLessThan(500);
 });

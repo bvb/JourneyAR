@@ -6,6 +6,8 @@ const BASE_URL = `https://localhost:${PORT}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  // Every test page runs WebGL and the tracker's WASM; more workers only slow them all down.
+  workers: 3,
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {

@@ -1,10 +1,13 @@
 import type { FrameSourceConfig } from '../config/frame-source';
+import type { ArScenesState } from '../scenes/ar-scenes';
 
 /** State exposed on `window.__journey` in dev/test builds for Playwright. */
 export interface JourneyTestHooks {
   ready: boolean;
   webglVersion: 1 | 2;
   framesRendered: number;
+  /** Triangles drawn in the last frame (0 when nothing is on screen). */
+  trianglesRendered: number;
   source: FrameSourceConfig;
   /** State of the frame source: idle until Start, running while frames play. */
   sourceState: 'idle' | 'starting' | 'running' | 'error';
@@ -12,6 +15,7 @@ export interface JourneyTestHooks {
   videoFrames: number;
   videoSize: [number, number] | null;
   tracking: TrackingHooks;
+  scenes: ArScenesState;
 }
 
 /** Tracker output, for comparing with the virtual camera's ground truth. */
