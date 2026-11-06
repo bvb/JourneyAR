@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test --workspaces --if-present",
-    "e2e": "npm run e2e -w journey-ar",
+    "e2e": "npm run e2e --workspaces --if-present --",
     "check-env": "npm run check-env -w tools",
     "unity:fix": "npm run unity:fix -w tools",
     "unity:check": "npm run unity:check -w tools",

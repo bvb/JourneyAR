@@ -15,9 +15,9 @@
 ## Команды (из корня)
 
 - `npm run dev` — приложение на https://localhost:5173 (самоподписанный сертификат, доступно в LAN).
-- `npm run dev:vcam` — виртуальная камера на https://localhost:5174.
+- `npm run dev:vcam` — виртуальная камера на https://localhost:5174: страницы клавишами 1–5 (0 — без страницы), поза камеры полями, пресетами и мышью; API `window.__vcam` (`setPage`, `setPose`, `setFrame`, `getGroundTruth`, `project`, `setPaused`/`renderFrame`).
 - `npm run check` — typecheck + lint + prettier + unit-тесты.
-- `npm run e2e` — Playwright: Edge и изолированный Chromium. Один браузер: `npm run e2e -- --project=edge`.
+- `npm run e2e` — Playwright для journey-ar и виртуальной камеры: Edge и изолированный Chromium. Один браузер: `npm run e2e -- --project=edge`.
 - `npm run build` — сборка всех workspaces.
 - `npm run check-env` — проверка Unity, Blender, ffmpeg и исходных папок.
 - `npm run unity:fix` — применить правки к `unity-data-project` (идемпотентно, резервные копии в `tools/.out/unity-backup/`).
@@ -37,7 +37,7 @@
 
 - Перед коммитом: `npm run check` и `npm run e2e` зелёные.
 - Ассеты в `journey-ar/assets` не правятся вручную — только скриптами из `tools/` (`assets:publish`); в `scenes.json` вручную/через debug-режим подстраиваются только `anchor`. Схема `scenes.json` — `journey-ar/src/scenes/manifest.ts`.
-- Система страницы — мм, начало в центре страницы, X вправо, Y к верху страницы, Z из страницы. Сцены в GLB — в системе таргета (ширина таргета = 1); перевод — `anchorMatrix()`.
+- Система страницы — мм, начало в центре страницы, X вправо, Y к верху страницы, Z из страницы. Поза трекера (`origin: 'center'`) и точная поза vcam — матрица страница → камера в осях OpenGL, мм. Сцены в GLB — в системе таргета (ширина таргета = 1); перевод — `anchorMatrix()`.
 - page166 (daqri) пока не используется, оптимизация GLB отложена до готового приложения (см. решения в плане).
 - `unity-data-project` (Unity 6.6, 6000.6.8f1) вне git: все правки в нём вносятся только через `tools/unity/apply-fixes.mjs` (удаления, оверлей `tools/unity/overlay/`, манифест), чтобы их можно было повторить на чистой копии оригинала. Код экспортёра живёт в `tools/unity-export` (локальный UPM-пакет, `.meta`-файлы коммитятся).
 - Fixed-function шейдеры оригинала работают в Unity 6 — не переписывать их: эмуляция Unity — эталон оригинального вида.
