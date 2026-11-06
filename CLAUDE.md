@@ -27,6 +27,9 @@
 - `npm run gltf:inspect` — gltf-validator + сверка GLB с отчётом Unity.
 - `npm run scenes:compare` — рендер каждой сцены в three.js (Edge) рядом с эталоном Unity → `tools/.out/compare/<id>.png`. Вручную: `https://localhost:5173/scene-preview.html?scene=<id>&t=<сек>` (только dev-сервер).
 - `npm run assets:publish` — GLB и MP3 в `journey-ar/assets`, генерация `scenes.json`; привязка сцен к страницам — поиском текстур таргетов Vuforia на сканах (превью в `tools/.out/anchors/`). Уже записанные привязки сохраняются, пересчёт: `npm run assets:publish -- --reset-anchors`.
+- `npm run pages:normalize` — сканы страниц → `book-ar-pages/normalized/<id>.jpg` (1700×1268, 142.5 dpi, симметричная обрезка).
+- `npm run nft:generate -- [id...]` — NFT-маркеры (`.iset/.fset/.fset3`) в `journey-ar/assets/nft/<id>/` (`--pages=`, `--out=` для экспериментов); логи в `tools/.out/logs/`.
+- `npm run nft:probe -- --markers=<папка> [id...]` — проверка маркеров без браузера: синтетические кадры с известной позой → Node-сборка jsartoolkit-nft → ошибка позы и время детекта.
 - Конвейер целиком: `unity:fix` → `unity:check` → `unity:render` → `unity:export` → `gltf:inspect` → `scenes:compare` → `assets:publish` (Unity закрыт).
 
 ## Правила

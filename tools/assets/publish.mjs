@@ -31,19 +31,10 @@ import {
   VUFORIA_DATASET,
   pageImage,
 } from '../config.mjs';
+import { SCENES } from '../scenes.mjs';
 import { drawBoxes } from './images.mjs';
 import { locateTarget } from './locate-target.mjs';
 import { readVuforiaTargets } from './vuforia.mjs';
-
-// Scenes of the app: export id, tracked page, original Vuforia target. The daqri page (page166)
-// is left out for now.
-const SCENES = [
-  { id: 'character', page: 'page32', target: 'Character' },
-  { id: 'creature', page: 'page52', target: 'Creature' },
-  { id: 'landscape', page: 'page63', target: 'Landscape' },
-  { id: 'architecture', page: 'page90', target: 'Architecture' },
-  { id: 'sequence', page: 'page131', target: 'Sequence' },
-];
 
 // Below this correlation the located target is reported as doubtful.
 const MIN_MATCH_SCORE = 0.8;

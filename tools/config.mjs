@@ -33,3 +33,18 @@ export function pageImage(page) {
 
 // Physical page size of the artbook, landscape orientation.
 export const PAGE_SIZE_MM = { width: 303, height: 226 };
+
+// Normalized pages (shared by NFT generation and the virtual camera): the whole page, scaled to
+// NORMALIZED_PAGE_WIDTH and cropped symmetrically to the page proportions.
+export const NORMALIZED_PAGES = path.join(BOOK_PAGES, 'normalized');
+export const NORMALIZED_PAGE_WIDTH = 1700;
+
+/** Pixel height of a page image of the given width with the physical page proportions. */
+export function pageHeightFor(width) {
+  return Math.round((width * PAGE_SIZE_MM.height) / PAGE_SIZE_MM.width);
+}
+
+/** Resolution (dots per inch) of a page image of the given pixel width. */
+export function pageDpi(width) {
+  return width / (PAGE_SIZE_MM.width / 25.4);
+}

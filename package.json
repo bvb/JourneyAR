@@ -24,6 +24,9 @@
     "unity:export": "npm run unity:export -w tools",
     "gltf:inspect": "npm run gltf:inspect -w tools",
     "assets:publish": "npm run assets:publish -w tools --",
+    "pages:normalize": "npm run pages:normalize -w tools --",
+    "nft:generate": "npm run nft:generate -w tools --",
+    "nft:probe": "npm run nft:probe -w tools --",
     "scenes:compare": "npm run compare -w journey-ar",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
@@ -35,6 +38,9 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1"
+  },
+  "overrides": {
+    "sharp": "0.35.5"
   },
   "allowScripts": {
     "ffmpeg-static@5.3.0": true
