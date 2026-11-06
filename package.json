@@ -18,6 +18,9 @@
     "test": "npm run test --workspaces --if-present",
     "e2e": "npm run e2e -w journey-ar",
     "check-env": "npm run check-env -w tools",
+    "unity:fix": "npm run unity:fix -w tools",
+    "unity:check": "npm run unity:check -w tools",
+    "unity:render": "npm run unity:render -w tools",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "devDependencies": {

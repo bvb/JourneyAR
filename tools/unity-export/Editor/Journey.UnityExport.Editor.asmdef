@@ -1,0 +1,9 @@
+{
+  "name": "Journey.UnityExport.Editor",
+  "rootNamespace": "Journey.UnityExport",
+  "references": [],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": false
+}

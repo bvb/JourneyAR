@@ -20,12 +20,16 @@
 - `npm run e2e` — Playwright: Edge и изолированный Chromium. Один браузер: `npm run e2e -- --project=edge`.
 - `npm run build` — сборка всех workspaces.
 - `npm run check-env` — проверка Unity, Blender, ffmpeg и исходных папок.
+- `npm run unity:fix` — применить правки к `unity-data-project` (идемпотентно, резервные копии в `tools/.out/unity-backup/`).
+- `npm run unity:check` — batchmode-проверка Unity-проекта: компиляция, шейдеры, материалы (отчёт в `tools/.out/unity/`).
+- `npm run unity:render` — эталонные рендеры каждого таргета в `tools/.out/reference/`.
 
 ## Правила
 
 - Перед коммитом: `npm run check` и `npm run e2e` зелёные.
 - Ассеты в `journey-ar/assets` не правятся вручную — только скриптами из `tools/` (кроме `scenes.json`, который подстраивается через debug-режим).
-- `unity-data-project` (Unity 6.6, 6000.6.8f1): менять только `Packages/manifest.json`, материалы/шейдеры и мусорные скрипты. Код экспортёра живёт в `tools/unity-export` (локальный UPM-пакет).
+- `unity-data-project` (Unity 6.6, 6000.6.8f1) вне git: все правки в нём вносятся только через `tools/unity/apply-fixes.mjs` (удаления, оверлей `tools/unity/overlay/`, манифест), чтобы их можно было повторить на чистой копии оригинала. Код экспортёра живёт в `tools/unity-export` (локальный UPM-пакет, `.meta`-файлы коммитятся).
+- Fixed-function шейдеры оригинала работают в Unity 6 — не переписывать их: эмуляция Unity — эталон оригинального вида.
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
 - Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`).
 - TypeScript закреплён на 6.0.x: typescript-eslint пока поддерживает только `<6.1`.

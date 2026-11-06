@@ -10,6 +10,9 @@ playwright-report/
 test-results/
 blob-report/
 
+# Pipeline output (logs, reports, reference renders)
+/tools/.out/
+
 # Logs and local env
 *.log
 .env*.local
