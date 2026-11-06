@@ -46,6 +46,7 @@
 - Эталоны Unity рендерятся без HDR намеренно (как 8-битный буфер телефона).
 - Отладка в `scene-preview.html`: `?t=` (время), `?hide=<материалы>`, `?ref=<папка эталонов в tools/.out>`; в Unity — `-journeyTargets`, `-journeyHide`, `-journeyTime`, `-journeyOut` (аргументы `node tools/unity/run-unity.mjs`).
 - Unity batchmode не запускается, пока проект открыт в редакторе: попросить пользователя закрыть Unity.
+- Трекинг: `src/tracking/` — jsartoolkit-nft в воркере (файлы воркера раздаются по `/nft-worker/` плагином в `vite.config.ts`), кадр 640 px по длинной стороне, одна активная страница, потеря на первом кадре без страницы, фильтр `native`. Параметры отладки: `?fov=<гориз. угол>` (по умолчанию 63°), `?filter=native|none|oneeuro`. Состояние трекера — `window.__journey.tracking` (страница, поза, события found/lost); метрики по точной позе — `tests/e2e/tracking.spec.ts`.
 - Тестовые источники кадров (`?source=canvas|webrtc|video`) работают только в dev/test-сборке (`import.meta.env.DEV`), запускаются кнопкой «Старт»:
   - `canvas` — виртуальная камера внутри приложения, управление через `window.__vcam`;
   - `webrtc` — поток из открытой vcam (`npm run dev:vcam`) через ретранслятор `/__signal` dev-сервера приложения (работает и на телефоне в LAN);

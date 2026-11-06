@@ -30,7 +30,8 @@ body {
   object-fit: cover;
 }
 
-#video.mirrored {
+#video.mirrored,
+#scene.mirrored {
   transform: scaleX(-1);
 }
 

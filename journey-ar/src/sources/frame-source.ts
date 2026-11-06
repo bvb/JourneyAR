@@ -14,6 +14,8 @@ export interface FrameSource {
   start(video: HTMLVideoElement): Promise<void>;
   /** Stops the frames and releases the device or connection. */
   stop(): void;
+  /** Focal length of the frames in video pixels, when the source knows it exactly. */
+  focal?(): number | undefined;
 }
 
 export async function createFrameSource(config: FrameSourceConfig): Promise<FrameSource> {

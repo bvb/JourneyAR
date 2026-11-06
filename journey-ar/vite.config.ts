@@ -1,5 +1,6 @@
 import basicSsl from '@vitejs/plugin-basic-ssl';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
@@ -44,6 +45,42 @@ function serveFolder(prefix: string, folder: string): Plugin {
   };
 }
 
+// Worker files of the NFT tracker (createNFTTrackerWorker loads them by URL from workerBase):
+// the default build and the SIMD one; the threaded build needs cross-origin isolation, which
+// the app does not use.
+const NFT_DIST = path.join(
+  path.dirname(createRequire(import.meta.url).resolve('@webarkit/jsartoolkit-nft/package.json')),
+  'dist',
+);
+const NFT_WORKER_FILES = ['NFTTracker.worker.js', 'NFTTracker_simd.worker.js'];
+
+/** Serves the NFT worker files under /nft-worker/ in dev and copies them there in builds. */
+function nftWorkerFiles(): Plugin {
+  return {
+    name: 'journey-nft-worker',
+    configureServer(server) {
+      server.middlewares.use('/nft-worker', (req, res, next) => {
+        const name = path.basename((req.url ?? '').split('?')[0] ?? '');
+        if (!NFT_WORKER_FILES.includes(name)) {
+          next();
+          return;
+        }
+        res.setHeader('Content-Type', 'text/javascript');
+        createReadStream(path.join(NFT_DIST, name)).pipe(res);
+      });
+    },
+    generateBundle() {
+      for (const name of NFT_WORKER_FILES) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `nft-worker/${name}`,
+          source: readFileSync(path.join(NFT_DIST, name)),
+        });
+      }
+    },
+  };
+}
+
 // Camera access needs a secure context, so the dev server runs on HTTPS with a
 // self-signed certificate. `host: true` exposes it on the LAN for the Android phone.
 export default defineConfig({
@@ -53,6 +90,7 @@ export default defineConfig({
     serveFolder('/__pipeline', PIPELINE_OUT),
     serveFolder('/__recordings', RECORDINGS),
     signalRelay(),
+    nftWorkerFiles(),
   ],
   server: { host: true, port: 5173, strictPort: true },
   preview: { host: true, port: 4173, strictPort: true },

@@ -27,5 +27,6 @@ export async function canvasSource(): Promise<FrameSource> {
       vcam.stop();
       releaseStream(video);
     },
+    focal: () => vcam.groundTruth().focal,
   };
 }
