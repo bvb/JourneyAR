@@ -1,7 +1,9 @@
 import type { FilterConfig, FrameGeometry } from '@webarkit/jsartoolkit-nft/client';
 import type { SceneEntry } from '../scenes/manifest';
 import { focalForFov, processingSize } from './camera-params';
+import { CanvasFrameGrabber, type FrameGrabber } from './frame-grabber';
 import { NftTracker, type TrackingResult } from './nft-tracker';
+import { SearchPacer } from './search-pacer';
 
 export interface TrackingLoopOptions {
   video: HTMLVideoElement;
@@ -12,6 +14,8 @@ export interface TrackingLoopOptions {
   fieldOfView: number;
   /** Focal length of the video frames in video pixels, when the source knows it. */
   sourceFocal?: () => number | undefined;
+  /** Makes the processing frames (default: through a 2D canvas). */
+  grabber?: FrameGrabber;
   onResult(result: TrackingResult): void;
   onError(error: unknown): void;
 }
@@ -20,7 +24,8 @@ const RETRY_AFTER_ERROR_MS = 1000;
 
 /**
  * Feeds the playing video to the tracker: on every new video frame, unless the tracker is still
- * busy, the frame is scaled to the processing size and processed.
+ * busy, the frame is scaled to the processing size and processed. While no page is in view the
+ * tracker only searches every SEARCH_INTERVAL_MS (SearchPacer): searching is its costliest work.
  *
  * The tracker always gets a landscape frame: a portrait video (a phone held upright) is drawn
  * rotated 90 degrees clockwise, and the tracker's projection turns it back (`rotated` in the
@@ -33,10 +38,12 @@ export class TrackingLoop {
   private busy = false;
   private rotated = false;
   private retryAt = 0;
-  private readonly canvas = document.createElement('canvas');
-  private readonly context = this.canvas.getContext('2d', { willReadFrequently: true })!;
+  private readonly pacer = new SearchPacer();
+  private readonly grabber: FrameGrabber;
 
-  constructor(private readonly options: TrackingLoopOptions) {}
+  constructor(private readonly options: TrackingLoopOptions) {
+    this.grabber = options.grabber ?? new CanvasFrameGrabber();
+  }
 
   /** Where the processing frame comes from in the video, for the tracker's projection. */
   get geometry(): FrameGeometry | null {
@@ -64,6 +71,7 @@ export class TrackingLoop {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.pacer.reset(performance.now());
     this.options.video.requestVideoFrameCallback(this.onFrame);
   }
 
@@ -81,7 +89,8 @@ export class TrackingLoop {
   private readonly onFrame = (): void => {
     if (!this.running) return;
     this.options.video.requestVideoFrameCallback(this.onFrame);
-    if (this.busy || performance.now() < this.retryAt) return;
+    const now = performance.now();
+    if (this.busy || now < this.retryAt || !this.pacer.shouldProcess(now)) return;
     this.busy = true;
     this.step()
       .catch((error: unknown) => {
@@ -132,22 +141,13 @@ export class TrackingLoop {
       this.tracker = tracker;
     }
 
-    if (this.canvas.width !== size.width || this.canvas.height !== size.height) {
-      this.canvas.width = size.width;
-      this.canvas.height = size.height;
-    }
     const portrait = videoHeight > videoWidth;
-    if (portrait) {
-      // Clockwise: the video top goes to the right edge, its left edge to the top.
-      this.context.setTransform(0, 1, -1, 0, size.width, 0);
-      this.context.drawImage(video, 0, 0, size.height, size.width);
-      this.context.setTransform(1, 0, 0, 1, 0, 0);
-    } else {
-      this.context.drawImage(video, 0, 0, size.width, size.height);
-    }
-    const frame = this.context.getImageData(0, 0, size.width, size.height);
-    const result = await tracker.process(frame, performance.now());
+    const grabbedAt = performance.now();
+    const frame = await this.grabber.grab(video, size, portrait);
+    if (!this.running) return;
+    const result = await tracker.process(frame, grabbedAt);
     this.rotated = portrait;
+    if (result) this.pacer.processed(grabbedAt, result.scene !== null);
     if (result && this.running) this.options.onResult(result);
   }
 }

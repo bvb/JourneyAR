@@ -12,6 +12,11 @@ export interface TrackingOptions {
   filter: FilterConfig;
   /** Smoothing of the shown pose (`?smooth=off` or `?smooth=<minCutoff>,<beta>,...`). */
   smoothing: SmoothingSettings | null;
+  /**
+   * How the tracker's frames are made (`?grab=gpu|canvas`): on the GPU from the video texture
+   * (default), or through a 2D canvas on the main thread (for comparisons).
+   */
+  grab: 'gpu' | 'canvas';
 }
 
 /** A typical phone main camera (checked on the user's phone); the virtual camera matches it. */
@@ -37,5 +42,6 @@ export function parseTrackingOptions(search: string): TrackingOptions {
     fieldOfView: fov > 10 && fov < 170 ? fov : DEFAULT_FIELD_OF_VIEW,
     filter,
     smoothing: parseSmoothing(params.get('smooth')),
+    grab: params.get('grab') === 'canvas' ? 'canvas' : 'gpu',
   };
 }

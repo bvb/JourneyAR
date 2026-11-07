@@ -9,7 +9,8 @@ import { Mesh, NoColorSpace, PlaneGeometry, ShaderMaterial, Vector2, VideoTextur
  */
 export class VideoBackground {
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
-  private readonly texture: VideoTexture;
+  /** The camera picture, uploaded once per video frame (the tracker's frames are made from it). */
+  readonly texture: VideoTexture;
   private readonly scale = new Vector2(1, 1);
 
   constructor(private readonly video: HTMLVideoElement) {

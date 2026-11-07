@@ -41,7 +41,9 @@ describe('parseTrackingOptions', () => {
       fieldOfView: DEFAULT_FIELD_OF_VIEW,
       filter: 'native',
       smoothing: DEFAULT_SMOOTHING,
+      grab: 'gpu',
     });
+    expect(parseTrackingOptions('?grab=canvas').grab).toBe('canvas');
   });
 
   it('reads ?fov= and ?filter=', () => {

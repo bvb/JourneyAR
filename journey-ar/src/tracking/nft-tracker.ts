@@ -2,6 +2,7 @@ import {
   type FilterConfig,
   type FrameGeometry,
   type NFTTrackerWorker,
+  type TrackerFrame,
   type Viewport,
   createNFTTrackerWorker,
 } from '@webarkit/jsartoolkit-nft/client';
@@ -85,7 +86,7 @@ export class NftTracker {
   }
 
   /** Tracks one frame; null when the worker was still busy with the previous one. */
-  async process(frame: ImageData, timestampMs: number): Promise<TrackingResult | null> {
+  async process(frame: TrackerFrame, timestampMs: number): Promise<TrackingResult | null> {
     const result = await this.worker.process(frame, timestampMs);
     if (result.skipped) return null;
     const found = result.targets.filter((target) => target.found && target.pose);

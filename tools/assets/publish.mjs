@@ -239,6 +239,17 @@ for (const scene of SCENES) {
     throw new Error(`${scene.id}: no pinch node ${pinch.node}`);
   }
 
+  // Nodes left out of the app (tools/scenes.mjs); their meshes and textures go with the
+  // optimization's cleanup when nothing else uses them.
+  for (const name of scene.removeNodes ?? []) {
+    const node = document
+      .getRoot()
+      .listNodes()
+      .find((n) => n.getName() === name);
+    if (!node) throw new Error(`${scene.id}: no node ${name} to remove`);
+    node.traverse((child) => child.dispose());
+  }
+
   // Texture scrolling the export cannot express, as AnimatedUVs components (the app plays them).
   for (const scroll of scene.uvScrolls ?? []) {
     const node = document

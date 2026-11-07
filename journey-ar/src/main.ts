@@ -17,11 +17,13 @@ import { installTestHooks } from './debug/test-hooks';
 import { pagePointAt } from './interaction/page-point';
 import { type ScreenPoint, attachSceneGestures } from './interaction/scene-gestures';
 import { ArScenes } from './scenes/ar-scenes';
+import { GpuFrameGrabber } from './render/gpu-frame-grabber';
 import { VideoBackground } from './render/video-background';
 import { configureLegacyRendering } from './scenes/legacy-rendering';
 import { loadScenesManifest } from './scenes/manifest';
 import { type FrameSource, createFrameSource } from './sources/frame-source';
 import './style.css';
+import { CanvasFrameGrabber } from './tracking/frame-grabber';
 import { PoseSmoother } from './tracking/pose-smoother';
 import { TrackingLoop } from './tracking/tracking-loop';
 import { PendingLoads } from './ui/pending-loads';
@@ -87,6 +89,18 @@ scene.add(anchor);
 const video = document.querySelector<HTMLVideoElement>('#video')!;
 const background = new VideoBackground(video);
 scene.add(background.mesh);
+// The tracker's frames: made on the GPU from the background's video texture (see the grabbers),
+// unless WebGL runs in software (SwiftShader, llvmpipe: no GPU to spare, and the asynchronous
+// read-back there is slow) or ?grab=canvas.
+const debugInfo = context.getExtension('WEBGL_debug_renderer_info');
+const glRenderer = debugInfo
+  ? String(context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
+  : String(context.getParameter(context.RENDERER));
+const softwareGl = /swiftshader|llvmpipe|software/i.test(glRenderer);
+const grabber =
+  trackingOptions.grab === 'canvas' || softwareGl
+    ? new CanvasFrameGrabber()
+    : new GpuFrameGrabber(renderer, background.texture);
 
 // What loads after Start: the NFT markers (the tracker), the scene models and the
 // soundtracks. A light runs round the Start button until they are all in.
@@ -217,6 +231,7 @@ function startTracking(sourceInUse: FrameSource): void {
     filter: trackingOptions.filter,
     fieldOfView: trackingOptions.fieldOfView,
     sourceFocal: sourceInUse.focal,
+    grabber,
     onResult(result) {
       // The first result: the tracker has its NFT markers.
       loads.done('nft');
@@ -293,18 +308,32 @@ function press(): void {
   }
 }
 
-const countFrame = (): void => {
+// Drawn at the camera's frame rate: on a display frame after a new video frame, at most
+// MAX_FPS times a second (a 30 fps camera on a 60-120 Hz screen: 30 draws a second, not 60-120).
+const MAX_FPS = 60;
+const MIN_FRAME_MS = 1000 / MAX_FPS - 2;
+// Longest step of the animations and the smoothing (after a pause, no jump).
+const MAX_STEP_SECONDS = 0.25;
+let newVideoFrame = false;
+const onVideoFrame = (): void => {
+  newVideoFrame = true;
   if (hooks) {
     hooks.videoFrames += 1;
     hooks.videoSize = [video.videoWidth, video.videoHeight];
   }
-  video.requestVideoFrameCallback(countFrame);
+  video.requestVideoFrameCallback(onVideoFrame);
 };
-video.requestVideoFrameCallback(countFrame);
+video.requestVideoFrameCallback(onVideoFrame);
 
 let lastTime: number | null = null;
 renderer.setAnimationLoop((time) => {
-  const deltaSeconds = lastTime === null ? 0 : (time - lastTime) / 1000;
+  if (hooks) hooks.ready = true;
+  background.update(window.innerWidth, window.innerHeight, running);
+  // The canvas shows once the camera picture is there; until then, the Journey picture.
+  document.body.classList.toggle('camera-on', background.mesh.visible);
+  if (!newVideoFrame || (lastTime !== null && time - lastTime < MIN_FRAME_MS)) return;
+  newVideoFrame = false;
+  const deltaSeconds = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, MAX_STEP_SECONDS);
   lastTime = time;
   arScenes.update(deltaSeconds);
   if (anchor.visible) {
@@ -333,14 +362,10 @@ renderer.setAnimationLoop((time) => {
     );
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
-  background.update(window.innerWidth, window.innerHeight, running);
-  // The canvas shows once the camera picture is there; until then, the Journey picture.
-  document.body.classList.toggle('camera-on', background.mesh.visible);
   renderer.render(scene, camera);
   if (hooks) {
     hooks.framesRendered += 1;
     hooks.trianglesRendered = renderer.info.render.triangles;
-    hooks.ready = true;
     hooks.scenes = arScenes.state;
   }
 });
