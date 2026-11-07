@@ -10,14 +10,23 @@ function readJson(url: URL): unknown {
   return JSON.parse(readFileSync(url, 'utf8'));
 }
 
-/** Node names from the JSON chunk of a GLB file. */
-function glbNodeNames(url: URL): string[] {
+interface GlbJson {
+  nodes?: { name?: string }[];
+  images?: { name?: string }[];
+  textures?: { source?: number; extensions?: { EXT_texture_webp?: { source: number } } }[];
+  materials?: { extras?: { properties?: Record<string, unknown> } }[];
+}
+
+/** The JSON chunk of a GLB file. */
+function glbJson(url: URL): GlbJson {
   const bytes = readFileSync(url);
   const jsonLength = bytes.readUInt32LE(12);
-  const json = JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength)) as {
-    nodes?: { name?: string }[];
-  };
-  return (json.nodes ?? []).map((node) => node.name ?? '');
+  return JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength)) as GlbJson;
+}
+
+/** Node names from the JSON chunk of a GLB file. */
+function glbNodeNames(url: URL): string[] {
+  return (glbJson(url).nodes ?? []).map((node) => node.name ?? '');
 }
 
 describe('shipped scenes.json', () => {
@@ -43,6 +52,28 @@ describe('shipped scenes.json', () => {
       expect(existsSync(new URL(scene.audio.src, ASSETS))).toBe(true);
       expect(existsSync(new URL(`Artbook_Journey-${scene.page}-image1.jpg`, PAGES))).toBe(true);
       expect(glbNodeNames(new URL(scene.model, ASSETS))).toContain(scene.pinch.node);
+    },
+  );
+
+  // The optimized models are rewritten by gltf-transform (tools/assets/optimize.mjs): the
+  // Unity material extras must still name glTF textures of the same images.
+  it.each(manifest.scenes.map((s) => [s.id, s] as const))(
+    '%s: the material extras point at the textures they name',
+    (_, scene) => {
+      const json = glbJson(new URL(scene.model, ASSETS));
+      let refs = 0;
+      for (const material of json.materials ?? []) {
+        for (const value of Object.values(material.extras?.properties ?? {})) {
+          if (!value || typeof value !== 'object' || !('index' in value)) continue;
+          const ref = value as { index: number | null; texture: string };
+          if (ref.index === null) continue;
+          const texture = json.textures?.[ref.index];
+          const source = texture?.source ?? texture?.extensions?.EXT_texture_webp?.source;
+          expect(source === undefined ? undefined : json.images?.[source]?.name).toBe(ref.texture);
+          refs += 1;
+        }
+      }
+      expect(refs).toBeGreaterThan(0);
     },
   );
 

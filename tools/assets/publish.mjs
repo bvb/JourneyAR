@@ -1,6 +1,6 @@
 // Publishes the converted scenes into the app:
-// - copies the GLB files of the Unity export to journey-ar/assets/models/<id>.glb (unoptimized
-//   for now, see .plans/plan.md);
+// - writes the GLB files of the Unity export, optimized for size (assets/optimize.mjs), to
+//   journey-ar/assets/models/<id>.glb;
 // - copies the original MP3 tracks to journey-ar/assets/audio/<id>.mp3 without re-encoding (they
 //   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other);
 // - writes journey-ar/assets/scenes.json (the NFT markers must exist: npm run nft:generate).
@@ -11,17 +11,9 @@
 // tuned in the app's debug mode; pass --reset-anchors to recompute them.
 //
 // Usage: node assets/publish.mjs [--reset-anchors]
-import { NodeIO, getBounds } from '@gltf-transform/core';
+import { Logger, NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   AR_ASSETS,
@@ -34,6 +26,8 @@ import {
 import { SCENES } from '../scenes.mjs';
 import { drawBoxes } from './images.mjs';
 import { locateTarget } from './locate-target.mjs';
+import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
+import { optimizeModel } from './optimize.mjs';
 import { readVuforiaTargets } from './vuforia.mjs';
 
 // Below this correlation the located target is reported as doubtful.
@@ -44,22 +38,27 @@ const ANCHOR_PREVIEWS = path.join(PIPELINE_OUT, 'anchors');
 const MANIFEST = path.join(AR_ASSETS, 'scenes.json');
 
 const resetAnchors = process.argv.includes('--reset-anchors');
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const io = new NodeIO()
+  .registerExtensions(ALL_EXTENSIONS)
+  .registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
 
 const round = (value, digits) => Number(value.toFixed(digits));
 
 /** Copies a file unless the target already has the same content. */
-function publishFile(source, target) {
-  if (!existsSync(source)) throw new Error(`Missing ${source}`);
-  const content = readFileSync(source);
+function publishBytes(content, target, note = '') {
   const label = path.relative(AR_ASSETS, target).replaceAll('\\', '/');
   if (existsSync(target) && readFileSync(target).equals(content)) {
     console.log(`  unchanged ${label}`);
   } else {
     mkdirSync(path.dirname(target), { recursive: true });
-    copyFileSync(source, target);
-    console.log(`  updated   ${label} (${(content.length / 2 ** 20).toFixed(1)} MB)`);
+    writeFileSync(target, content);
+    console.log(`  updated   ${label} (${(content.length / 2 ** 20).toFixed(2)} MB${note})`);
   }
+}
+
+function publishFile(source, target) {
+  if (!existsSync(source)) throw new Error(`Missing ${source}`);
+  publishBytes(readFileSync(source), target);
 }
 
 /** Removes files with the given extension that this run did not publish. */
@@ -158,7 +157,8 @@ for (const scene of SCENES) {
   console.log(scene.id);
   const glbSource = path.join(EXPORT_DIR, `${scene.id}.glb`);
   const document = await io.read(glbSource);
-  publishFile(glbSource, path.join(AR_ASSETS, 'models', `${scene.id}.glb`));
+  // Expected skips (texture coordinates outside [0, 1] are not quantized) are not news.
+  document.setLogger(new Logger(Logger.Verbosity.ERROR));
 
   const audio = single(componentsOf(document, 'AudioSource'), 'AudioSource', scene.id).component;
   if (path.extname(audio.clipPath).toLowerCase() !== '.mp3') {
@@ -201,6 +201,15 @@ for (const scene of SCENES) {
       ...(scene.pinchPivot ? { pivot: centerOf(document, scene.pinchPivot, scene.id) } : {}),
     },
   });
+
+  // Last: optimizing changes the document read above.
+  const exported = readFileSync(glbSource);
+  const { bytes, textures } = await optimizeModel(io, document, exported);
+  publishBytes(
+    bytes,
+    path.join(AR_ASSETS, 'models', `${scene.id}.glb`),
+    `, export ${(exported.length / 2 ** 20).toFixed(2)} MB, ${textures.length} textures to WebP`,
+  );
 }
 
 removeStale(path.join(AR_ASSETS, 'models'), '.glb', new Set(SCENES.map((s) => `${s.id}.glb`)));
