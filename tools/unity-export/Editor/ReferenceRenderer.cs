@@ -34,6 +34,8 @@ namespace Journey.UnityExport
             // Debugging aids: render only some targets, hide renderers by material name.
             var only = CommandLine.GetOption("-journeyTargets")?.Split(',');
             var hidden = CommandLine.GetOption("-journeyHide")?.Split(',') ?? new string[0];
+            // Close-up: frame this object (by name) instead of the whole page.
+            var focus = CommandLine.GetOption("-journeyFocus");
 
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             var roots = scene.GetRootGameObjects();
@@ -59,7 +61,7 @@ namespace Journey.UnityExport
                 SampleAnimations(target, time);
                 ApplyUvScrolling(target, time);
 
-                var description = Render(target, Path.Combine(outDir, $"{id}.png"));
+                var description = Render(target, Path.Combine(outDir, $"{id}.png"), focus);
                 description["id"] = id;
                 description["trackable"] = trackable;
                 description["root"] = target.name;
@@ -132,15 +134,21 @@ namespace Journey.UnityExport
         }
 
         /// <summary>Renders the target to a PNG and returns its camera in the target's local frame.</summary>
-        private static JObject Render(GameObject target, string file)
+        private static JObject Render(GameObject target, string file, string focus = null)
         {
-            // Frame the page plane (the target's own renderer) with room for the content above it.
+            // Frame the page plane (the target's own renderer) with room for the content above it,
+            // or, for a close-up, the renderer of the object named `focus` and its surroundings.
             var page = target.GetComponent<Renderer>();
-            var bounds = page != null
-                ? page.bounds
-                : target.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+            var focused = string.IsNullOrEmpty(focus)
+                ? null
+                : target.GetComponentsInChildren<Renderer>(true).FirstOrDefault(r => r.name == focus);
+            var bounds = focused != null
+                ? focused.bounds
+                : page != null
+                    ? page.bounds
+                    : target.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
             var t = target.transform;
-            var radius = bounds.extents.magnitude * 1.6f;
+            var radius = bounds.extents.magnitude * (focused != null ? 3f : 1.6f);
             var distance = radius / Mathf.Sin(FieldOfView * 0.5f * Mathf.Deg2Rad);
             var position = bounds.center + (t.up - t.forward).normalized * distance;
 

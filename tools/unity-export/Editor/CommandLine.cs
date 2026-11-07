@@ -20,9 +20,11 @@ namespace Journey.UnityExport
         /// <summary>Output directory from -journeyOut, or tools/.out/&lt;fallback&gt; in the repository.</summary>
         public static string GetOutputDirectory(string fallbackName)
         {
-            var dir = GetOption("-journeyOut")
-                ?? Path.Combine(Application.dataPath, "..", "..", "tools", ".out", fallbackName);
-            dir = Path.GetFullPath(dir);
+            // Relative paths are relative to the repository root (Unity's own working directory
+            // is the project, which must not collect output).
+            var root = Path.Combine(Application.dataPath, "..", "..");
+            var dir = GetOption("-journeyOut") ?? Path.Combine("tools", ".out", fallbackName);
+            dir = Path.GetFullPath(Path.IsPathRooted(dir) ? dir : Path.Combine(root, dir));
             Directory.CreateDirectory(dir);
             return dir;
         }

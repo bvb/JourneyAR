@@ -3,8 +3,10 @@
 // 1. Removes ripped files that no longer compile and are not used by anything.
 // 2. Copies rewritten files from ./overlay over the broken originals. Only existing files
 //    are replaced, so their .meta files (and the GUIDs materials refer to) stay intact.
-// 3. Restores the "use the shader's render queue" default on the ripped materials.
-// 4. Registers the local editor package tools/unity-export and UnityGLTF in
+// 3. Adds files the ripped project lost from ./additions (with their .meta, so the GUIDs are
+//    fixed), and points the materials that used them back at them (MATERIAL_SHADERS).
+// 4. Restores the "use the shader's render queue" default on the ripped materials.
+// 5. Registers the local editor package tools/unity-export and UnityGLTF in
 //    Packages/manifest.json.
 //
 // Every file is backed up to tools/.out/unity-backup/ before it is removed or replaced.
@@ -23,6 +25,14 @@ import { ROOT, UNITY_PROJECT } from '../config.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OVERLAY = path.join(HERE, 'overlay');
+const ADDITIONS = path.join(HERE, 'additions');
+
+// Materials whose shader the ripped project lost (they fell back to the built-in Standard
+// shader), with the GUID of the restored shader in ./additions.
+const MATERIAL_SHADERS = [
+  // Light cone in front of the Creature's head: "Shield" (additive, facing-ratio ramp).
+  { material: 'Assets/Material/Ramp.mat', guid: 'e0e03fff58484464cfbdb2d7a7fff798' },
+];
 const BACKUP = path.join(ROOT, 'tools', '.out', 'unity-backup');
 
 // Ripped NGUI clipping shaders contain only compiled GLES programs: Unity 6 cannot parse
@@ -99,6 +109,35 @@ for (const source of walk(OVERLAY)) {
     backup(target);
     writeFileSync(target, content);
     console.log(`replaced  ${rel(target)}`);
+  }
+}
+
+for (const source of walk(ADDITIONS)) {
+  const target = path.join(UNITY_PROJECT, path.relative(ADDITIONS, source));
+  const content = readFileSync(source);
+  if (existsSync(target) && readFileSync(target).equals(content)) {
+    console.log(`unchanged ${rel(target)}`);
+  } else {
+    if (existsSync(target)) backup(target);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, content);
+    console.log(`added     ${rel(target)}`);
+  }
+}
+
+for (const { material, guid } of MATERIAL_SHADERS) {
+  const file = path.join(UNITY_PROJECT, material);
+  const text = readFileSync(file, 'utf8');
+  const fixed = text.replace(
+    /^(\s*m_Shader:) \{[^}]*\}$/m,
+    `$1 {fileID: 4800000, guid: ${guid}, type: 3}`,
+  );
+  if (fixed === text) {
+    console.log(`unchanged shader of ${material}`);
+  } else {
+    backup(file);
+    writeFileSync(file, fixed);
+    console.log(`updated   shader of ${material} -> ${guid}`);
   }
 }
 

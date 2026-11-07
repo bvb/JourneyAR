@@ -1,7 +1,11 @@
 import {
+  AddEquation,
   AdditiveBlending,
   ClampToEdgeWrapping,
   Color,
+  CustomBlending,
+  DataTexture,
+  DoubleSide,
   type Material,
   Matrix3,
   MeshBasicMaterial,
@@ -11,7 +15,9 @@ import {
   MirroredRepeatWrapping,
   NearestFilter,
   NoColorSpace,
+  OneFactor,
   RepeatWrapping,
+  ShaderMaterial,
   type Texture,
   type Wrapping,
 } from 'three';
@@ -145,6 +151,71 @@ function withDetail(material: MeshLambertMaterial, detail: Texture | null): Mesh
   return material;
 }
 
+function whiteTexture(): Texture {
+  const texture = new DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * The "Shield" shader of the original build (restored by tools/unity/additions): an additive,
+ * double-sided glow whose brightness follows the facing ratio |view . normal| through a ramp
+ * texture, times a surface texture and the tint (Blend One One, no depth write).
+ */
+function shieldMaterial(
+  name: string,
+  surface: Texture,
+  ramp: Texture,
+  tint: Color,
+  tintAlpha: number,
+  offset: number,
+): ShaderMaterial {
+  surface.updateMatrix();
+  return new ShaderMaterial({
+    name,
+    uniforms: {
+      surfaceTex: { value: surface },
+      surfaceTransform: { value: new Matrix3().copy(surface.matrix) },
+      rampTex: { value: ramp },
+      tint: { value: tint },
+      tintAlpha: { value: tintAlpha },
+      offset: { value: offset },
+    },
+    vertexShader: /* glsl */ `
+      uniform mat3 surfaceTransform;
+      uniform float offset;
+      varying vec2 vSurfaceUv;
+      varying float vFacing;
+      void main() {
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vec3 viewNormal = normalize(normalMatrix * normal);
+        vFacing = abs(dot(normalize(-viewPosition.xyz), viewNormal));
+        // glTF flips V against Unity: Unity's v + _Offset is v - offset here.
+        vSurfaceUv = (surfaceTransform * vec3(uv.x, uv.y - offset, 1.0)).xy;
+        gl_Position = projectionMatrix * viewPosition;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D surfaceTex;
+      uniform sampler2D rampTex;
+      uniform vec3 tint;
+      uniform float tintAlpha;
+      varying vec2 vSurfaceUv;
+      varying float vFacing;
+      void main() {
+        vec4 ramp = texture2D(rampTex, vec2(vFacing, 0.5)) * tintAlpha;
+        vec4 color = texture2D(surfaceTex, vSurfaceUv) * ramp * vec4(tint, tintAlpha);
+        gl_FragColor = vec4(color.rgb, ramp.r);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    blending: CustomBlending,
+    blendEquation: AddEquation,
+    blendSrc: OneFactor,
+    blendDst: OneFactor,
+  });
+}
+
 /**
  * Builds the three.js material that reproduces a Unity material, from the original shader name
  * and properties. Unlit shaders map to MeshBasicMaterial, legacy lit ones to Lambert/Phong.
@@ -272,6 +343,19 @@ export async function createUnityMaterial(
           lightMap: await textureOf(ctx, p, '_LightMap', 1),
           lightMapIntensity: LIGHTMAP_INTENSITY,
         }),
+      };
+
+    case 'Shield':
+      return {
+        known: true,
+        material: shieldMaterial(
+          name,
+          (await textureOf(ctx, p, '_SurfaceTex')) ?? whiteTexture(),
+          (await textureOf(ctx, p, '_RampTex')) ?? whiteTexture(),
+          colorOf(p, '_Color'),
+          alphaOf(p, '_Color'),
+          numberOf(p, '_Offset', 0),
+        ),
       };
 
     case 'Standard':
