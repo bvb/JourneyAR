@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "playwright test --project=edge --grep-invert @regression",
+    "e2e:full": "playwright test",
     "compare": "playwright test -c playwright.pipeline.config.ts"
   },
   "dependencies": {

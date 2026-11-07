@@ -1,8 +1,10 @@
 // Scenes of the app: export id (Unity target), tracked page in book-ar-pages and the original
-// Vuforia target. The daqri page (page166) is left out for now (see .plans/plan.md).
+// Vuforia target.
 // `pinchMax` replaces the original upper pinch limit (relative to the initial size);
 // `pinchPivot` names the nodes whose common centre the pinch scales about (by default the pinch
-// node's own origin, as in the original).
+// node's own origin, as in the original); `pinch` gives the pinch settings of a scene that had
+// no PinchScale. `uvScrolls` add texture scrolling the export cannot express (published as
+// AnimatedUVs components, which the app plays): node, its material index, offset per second.
 export const SCENES = [
   { id: 'character', page: 'page32', target: 'Character' },
   { id: 'creature', page: 'page52', target: 'Creature' },
@@ -17,6 +19,17 @@ export const SCENES = [
   },
   { id: 'architecture', page: 'page90', target: 'Architecture' },
   { id: 'sequence', page: 'page131', target: 'Sequence' },
+  // The DAQRI page. The original did not scale it; here it scales like the others, from its root.
+  // Its sky scrolled with a legacy Animation (SkyScroll, played automatically in the 2012 build:
+  // _MainTex.offset.x of the sky's first material from 0 to 1 in 35 s, looping; the clip's second
+  // curve names a node that does not exist).
+  {
+    id: 'daqri',
+    page: 'page166',
+    target: 'daqri',
+    pinch: { node: 'DaqriBeach_Prefab', min: 1, max: 2 },
+    uvScrolls: [{ node: 'BeachSkyOverlay_FBX', materialIndex: 0, rate: [1 / 35, 0] }],
+  },
 ];
 
 /** Picks scenes by the ids given on the command line (all scenes when none are given). */

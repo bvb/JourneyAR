@@ -32,11 +32,12 @@ function glbNodeNames(url: URL): string[] {
 describe('shipped scenes.json', () => {
   const manifest = parseScenesManifest(readJson(new URL('scenes.json', ASSETS)));
 
-  it('lists the five book scenes', () => {
+  it('lists the six book scenes', () => {
     expect(manifest.scenes.map((s) => s.id).sort()).toEqual([
       'architecture',
       'character',
       'creature',
+      'daqri',
       'landscape',
       'sequence',
     ]);

@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { collectErrors, uniqueRoom } from './helpers';
+import { collectErrors, pressStop, uniqueRoom } from './helpers';
 
 const VCAM_URL = 'https://localhost:5174/';
 const RECORDING = 'vcam-architecture-orbit';
@@ -49,7 +49,7 @@ test('plays the embedded virtual camera with ?source=canvas', async ({ page }) =
   await page.evaluate(() => window.__vcam!.setPage(null));
   await expect.poll(() => videoLuminance(page)).toBeLessThan(110);
 
-  await page.getByRole('button', { name: 'Стоп' }).click();
+  await pressStop(page);
   expect(await page.evaluate(() => window.__journey?.sourceState)).toBe('idle');
   expect(errors).toEqual([]);
 });

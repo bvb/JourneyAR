@@ -73,8 +73,9 @@ export class TrackingLoop {
 
   async dispose(): Promise<void> {
     this.stop();
-    await this.tracker?.dispose();
+    const tracker = this.tracker;
     this.tracker = null;
+    await tracker?.dispose();
   }
 
   private readonly onFrame = (): void => {
@@ -84,9 +85,12 @@ export class TrackingLoop {
     this.busy = true;
     this.step()
       .catch((error: unknown) => {
+        // Stopped: a frame still in the worker fails with the disposed tracker; not an error.
+        if (!this.running) return;
         this.options.onError(error);
-        void this.tracker?.dispose().catch(() => undefined);
+        const tracker = this.tracker;
         this.tracker = null;
+        void tracker?.dispose().catch(() => undefined);
         this.retryAt = performance.now() + RETRY_AFTER_ERROR_MS;
       })
       .finally(() => {
@@ -108,8 +112,8 @@ export class TrackingLoop {
       tracker.intrinsics.width !== size.width ||
       tracker.intrinsics.height !== size.height
     ) {
-      await tracker?.dispose();
       this.tracker = null;
+      await tracker?.dispose();
       const sourceFocal = this.options.sourceFocal?.();
       const focal = sourceFocal
         ? (sourceFocal * size.width) / longSide

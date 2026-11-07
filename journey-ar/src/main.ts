@@ -189,7 +189,7 @@ if (hooks) {
 
 // Frame source: started and stopped with the button (the camera needs a user gesture, and so
 // will the audio on iOS).
-const startButton = new StartButton(document.querySelector<HTMLButtonElement>('#start')!);
+const startButton = new StartButton(document.querySelector<HTMLButtonElement>('#start')!, press);
 let frameSource: FrameSource | null = null;
 let tracking: TrackingLoop | null = null;
 const smoother = new PoseSmoother(trackingOptions.smoothing);
@@ -252,7 +252,7 @@ function startTracking(sourceInUse: FrameSource): void {
 }
 
 function stopTracking(): void {
-  void tracking?.dispose();
+  void tracking?.dispose().catch(() => undefined);
   tracking = null;
   anchor.visible = false;
   arScenes.setTracked(null);
@@ -277,7 +277,8 @@ async function startSource(): Promise<void> {
   }
 }
 
-startButton.element.addEventListener('click', () => {
+/** Start or Stop pressed (called within the click, see StartButton). */
+function press(): void {
   if (running) {
     stopTracking();
     frameSource?.stop();
@@ -290,7 +291,7 @@ startButton.element.addEventListener('click', () => {
     void startSource();
     audio.preload();
   }
-});
+}
 
 const countFrame = (): void => {
   if (hooks) {

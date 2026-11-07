@@ -24,7 +24,14 @@ test('starts with the first page and renders frames', async ({ page }) => {
     page: window.__vcam!.getPage(),
     frame: window.__vcam!.getFrame(),
   }));
-  expect(state.pages).toEqual(['character', 'creature', 'landscape', 'architecture', 'sequence']);
+  expect(state.pages).toEqual([
+    'character',
+    'creature',
+    'landscape',
+    'architecture',
+    'sequence',
+    'daqri',
+  ]);
   expect(state.page).toBe('character');
   expect(state.frame).toMatchObject({ width: 640, height: 480 });
   await page.waitForFunction(() => window.__vcam!.framesRendered > 10);
@@ -86,7 +93,7 @@ test('reports the page leaving the frame and frames without a page', async ({ pa
   expect(result).toEqual({ whole: 1, outside: 0, page: null, empty: 0 });
 });
 
-test('switches pages with the keys 0-5 and the buttons', async ({ page }) => {
+test('switches pages with the keys 0-6 and the buttons', async ({ page }) => {
   await open(page);
   await page.keyboard.press('4');
   await expect.poll(() => page.evaluate(() => window.__vcam!.getPage())).toBe('architecture');
@@ -94,6 +101,8 @@ test('switches pages with the keys 0-5 and the buttons', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__vcam!.getPage())).toBeNull();
   await page.getByRole('button', { name: /Sequence/ }).click();
   await expect.poll(() => page.evaluate(() => window.__vcam!.getPage())).toBe('sequence');
+  await page.keyboard.press('6');
+  await expect.poll(() => page.evaluate(() => window.__vcam!.getPage())).toBe('daqri');
 });
 
 test('moves the camera with the presets and the fields', async ({ page }) => {

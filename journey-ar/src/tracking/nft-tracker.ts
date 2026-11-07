@@ -94,10 +94,10 @@ export class NftTracker {
     );
     if (selection.verify !== this.verifying) {
       this.verifying = selection.verify;
-      void this.worker.configure({
-        continuousDetection: selection.verify,
-        detectionInterval: VERIFY_INTERVAL_MS,
-      });
+      // Not awaited: it fails only when the tracker is disposed meanwhile (stop, new tracker).
+      this.worker
+        .configure({ continuousDetection: selection.verify, detectionInterval: VERIFY_INTERVAL_MS })
+        .catch(() => undefined);
     }
     const scene = selection.candidate?.scene ?? null;
     const pick = found.find((target) => this.scenesById.get(target.id) === scene);

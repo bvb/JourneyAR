@@ -8,6 +8,7 @@
 // 4. Restores the "use the shader's render queue" default on the ripped materials.
 // 5. Registers the local editor package tools/unity-export and UnityGLTF in
 //    Packages/manifest.json.
+// 6. Puts the colour channels of the ARGB4444 textures back in order (SHIFTED_TEXTURES).
 //
 // Every file is backed up to tools/.out/unity-backup/ before it is removed or replaced.
 import {
@@ -21,6 +22,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 import { ROOT, UNITY_PROJECT } from '../config.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +36,17 @@ const MATERIAL_SHADERS = [
   { material: 'Assets/Material/Ramp.mat', guid: 'e0e03fff58484464cfbdb2d7a7fff798' },
 ];
 const BACKUP = path.join(ROOT, 'tools', '.out', 'unity-backup');
+
+// The 2012 Android build stored these textures as ARGB4444 in the GLES channel order, and the rip
+// (like UnityPy) decoded them with the channels shifted: its blue is the alpha, so cut-out
+// backgrounds came out opaque (the daqri beach on yellow, the Landscape sun on orange) and the
+// colours wrong. Rebuilt from the backed-up rip: RGBA <- (A, R, G, B). The particle triangle is
+// used by the daqri particles, which are not exported.
+const SHIFTED_TEXTURES = [
+  'Assets/Texture2D/BeachwithCutoutRocks.png',
+  'Assets/Texture2D/Sun.png',
+  'Assets/Texture2D/TriAngle_forParticles.png',
+];
 
 // Ripped NGUI clipping shaders contain only compiled GLES programs: Unity 6 cannot parse
 // them and no material uses them (they served the old NGUI interface, which is not ported).
@@ -192,5 +205,33 @@ if (updatedManifest === originalManifest) {
   writeFileSync(manifestPath, updatedManifest);
   for (const [name, ref] of Object.entries(requiredPackages)) {
     console.log(`updated   Packages/manifest.json: ${name} -> ${ref}`);
+  }
+}
+
+for (const texture of SHIFTED_TEXTURES) {
+  const file = path.join(UNITY_PROJECT, texture);
+  backup(file);
+  // From the original rip each time, so running again changes nothing.
+  const { data, info } = await sharp(path.join(BACKUP, texture), { ignoreIcc: true })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 4) {
+    const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+    data[i] = a;
+    data[i + 1] = r;
+    data[i + 2] = g;
+    data[i + 3] = b;
+  }
+  const png = await sharp(data, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  if (readFileSync(file).equals(png)) {
+    console.log(`unchanged channels of ${texture}`);
+  } else {
+    writeFileSync(file, png);
+    console.log(`updated   channels of ${texture} (ARGB4444 order)`);
   }
 }

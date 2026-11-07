@@ -4,7 +4,7 @@ import { collectErrors } from './helpers';
 
 // The AR scenes on the tracked page, through the embedded virtual camera (?source=canvas).
 
-const SCENES = ['character', 'creature', 'landscape', 'architecture', 'sequence'];
+const SCENES = ['character', 'creature', 'landscape', 'architecture', 'sequence', 'daqri'];
 const VIEW = { target: [0, 0] as [number, number], distance: 450, tilt: 35, azimuth: 0, roll: 0 };
 
 async function start(page: Page): Promise<string[]> {
@@ -27,7 +27,7 @@ async function showPage(page: Page, id: string | null): Promise<void> {
   );
 }
 
-test('shows the scene of every page on it', async ({ page }, info) => {
+test('shows the scene of every page on it', { tag: '@regression' }, async ({ page }, info) => {
   test.setTimeout(120_000);
   const errors = await start(page);
   for (const id of SCENES) {
@@ -37,7 +37,8 @@ test('shows the scene of every page on it', async ({ page }, info) => {
       id,
       { timeout: 30_000 },
     );
-    await page.waitForFunction(() => window.__journey!.trianglesRendered > 1000);
+    // More than the camera picture (two triangles): daqri has only some sixty.
+    await page.waitForFunction(() => window.__journey!.trianglesRendered > 2);
     await info.attach(`ar-${id}`, { body: await page.screenshot(), contentType: 'image/png' });
   }
   expect(errors).toEqual([]);
@@ -77,22 +78,26 @@ test('hides the scene in the frame the page is lost and restarts it on return', 
   expect(await page.evaluate(() => window.__journey!.scenes.time)).toBeLessThan(0.5);
 });
 
-test('continues the animations where they stopped when the page is back soon', async ({ page }) => {
-  test.setTimeout(60_000);
-  await start(page);
-  await showPage(page, 'creature');
-  await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 30_000 });
-  await page.waitForFunction(() => window.__journey!.scenes.time > 2);
+test(
+  'continues the animations where they stopped when the page is back soon',
+  { tag: '@regression' },
+  async ({ page }) => {
+    test.setTimeout(60_000);
+    await start(page);
+    await showPage(page, 'creature');
+    await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 30_000 });
+    await page.waitForFunction(() => window.__journey!.scenes.time > 2);
 
-  const before = await page.evaluate(() => window.__journey!.scenes.time);
-  await page.evaluate(() => window.__vcam!.setPage(null));
-  await page.waitForFunction(() => !window.__journey!.scenes.shown);
-  await page.waitForTimeout(1500);
-  await showPage(page, 'creature');
-  await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 10_000 });
-  // Continued (not from the start) and paused while hidden (not 1.5 s further on): the loss
-  // is seen a few tracker frames after the page goes.
-  const back = await page.evaluate(() => window.__journey!.scenes.time);
-  expect(back).toBeGreaterThanOrEqual(before);
-  expect(back).toBeLessThan(before + 1);
-});
+    const before = await page.evaluate(() => window.__journey!.scenes.time);
+    await page.evaluate(() => window.__vcam!.setPage(null));
+    await page.waitForFunction(() => !window.__journey!.scenes.shown);
+    await page.waitForTimeout(1500);
+    await showPage(page, 'creature');
+    await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 10_000 });
+    // Continued (not from the start) and paused while hidden (not 1.5 s further on): the loss
+    // is seen a few tracker frames after the page goes.
+    const back = await page.evaluate(() => window.__journey!.scenes.time);
+    expect(back).toBeGreaterThanOrEqual(before);
+    expect(back).toBeLessThan(before + 1);
+  },
+);

@@ -54,6 +54,26 @@ const NFT_DIST = path.join(
 );
 const NFT_WORKER_FILES = ['NFTTracker.worker.js', 'NFTTracker_simd.worker.js'];
 
+// Put before the worker code: the ARToolKit core prints its version and camera parameters for
+// every tracker it creates (printf, not under its log level) and one harmless error when it is
+// disposed (it has no square markers to detach). Warnings and other errors stay.
+const NFT_WORKER_PRELUDE = `// Added by journey-ar/vite.config.ts: quiet ARToolKit diagnostics.
+{
+  const quiet = () => {};
+  console.log = quiet;
+  console.info = quiet;
+  console.debug = quiet;
+  const error = console.error.bind(console);
+  console.error = (...args) => {
+    if (!String(args[0]).includes('Error detaching pattern from arhandle')) error(...args);
+  };
+}
+`;
+
+function nftWorkerSource(name: string): string {
+  return NFT_WORKER_PRELUDE + readFileSync(path.join(NFT_DIST, name), 'utf8');
+}
+
 /** Serves the NFT worker files under /nft-worker/ in dev and copies them there in builds. */
 function nftWorkerFiles(): Plugin {
   return {
@@ -66,7 +86,7 @@ function nftWorkerFiles(): Plugin {
           return;
         }
         res.setHeader('Content-Type', 'text/javascript');
-        createReadStream(path.join(NFT_DIST, name)).pipe(res);
+        res.end(nftWorkerSource(name));
       });
     },
     generateBundle() {
@@ -74,7 +94,7 @@ function nftWorkerFiles(): Plugin {
         this.emitFile({
           type: 'asset',
           fileName: `nft-worker/${name}`,
-          source: readFileSync(path.join(NFT_DIST, name)),
+          source: nftWorkerSource(name),
         });
       }
     },

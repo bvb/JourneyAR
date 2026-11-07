@@ -7,6 +7,7 @@ const PAGE_LABELS: Record<string, string> = {
   landscape: 'Landscape · с. 69',
   architecture: 'Architecture · с. 103',
   sequence: 'Sequence · с. 146',
+  daqri: 'Daqri · в конце книги',
 };
 
 function element<K extends keyof HTMLElementTagNameMap>(

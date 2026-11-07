@@ -59,7 +59,8 @@ body.camera-on #scene {
 
 /* Start/Stop: a black disc with a white rim and the traveller. Started, the picture inverts
    (white disc, black traveller, a black gap before the rim) and the rim grows thicker; while
-   loading, a light runs round a faint rim; an error turns the rim red (StartButton). */
+   loading, a light runs round a faint rim; an error turns the rim red. Started and loaded, it
+   folds into a small translucent bar until tapped or swiped up (StartButton). */
 #start {
   --rim: #fff;
   --rim-faint: rgb(255 255 255 / 30%);
@@ -72,10 +73,41 @@ body.camera-on #scene {
   height: 76px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 38px;
   background: #000;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease,
+    border-radius 0.3s ease,
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* Folded: a translucent bar (red after an error), with a larger area to tap or swipe on. */
+#start.collapsed {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 55%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+#start.collapsed.error {
+  background: rgb(255 59 48 / 75%);
+}
+
+#start.collapsed::after {
+  content: '';
+  position: absolute;
+  inset: -22px -28px;
+}
+
+#start.collapsed::before,
+#start.collapsed .logo,
+#start.collapsed .ring {
+  opacity: 0;
 }
 
 #start.error {
@@ -99,7 +131,9 @@ body.camera-on #scene {
   border-radius: 50%;
   background: #fff;
   transform: scale(0);
-  transition: transform 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.2s ease;
 }
 
 #start.on::before {
@@ -111,7 +145,9 @@ body.camera-on #scene {
   width: 46%;
   height: 46%;
   pointer-events: none;
-  transition: filter 0.25s ease;
+  transition:
+    filter 0.25s ease,
+    opacity 0.2s ease;
 }
 
 #start.on .logo {
@@ -126,6 +162,7 @@ body.camera-on #scene {
   overflow: visible;
   /* The light starts at the top and runs clockwise. */
   transform: rotate(-90deg);
+  transition: opacity 0.2s ease;
 }
 
 #start .ring circle {

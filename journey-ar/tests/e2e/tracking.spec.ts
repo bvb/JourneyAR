@@ -5,7 +5,7 @@ import { type Page, expect, test } from '@playwright/test';
 // Thresholds follow the plan (detection within 1.5 s, position error within 5 % of the page
 // width, i.e. 15 mm) with tighter limits where the synthetic frames allow.
 
-const SCENES = ['character', 'creature', 'landscape', 'architecture', 'sequence'];
+const SCENES = ['character', 'creature', 'landscape', 'architecture', 'sequence', 'daqri'];
 
 /**
  * Time limits are for Edge, the primary browser. The headless Chromium build renders the
@@ -208,31 +208,35 @@ function measureMotion(page: Page): Promise<MotionMetrics> {
   });
 }
 
-test('detects, tracks and loses every page like the ground truth says', async ({ page }, info) => {
-  const slow = timeScale(info.project.name);
-  test.setTimeout(90_000);
-  await startTracking(page);
-  await installHelpers(page);
-  const results: StaticMetrics[] = [];
-  for (const scene of SCENES) results.push(await measureStatic(page, scene));
-  await info.attach('static-metrics', {
-    body: JSON.stringify(results, null, 2),
-    contentType: 'application/json',
-  });
-  console.table(results.map((r) => ({ ...r, otherScenes: r.otherScenes.join(' ') })));
-  for (const r of results) {
-    expect.soft(r.detectMs, `${r.scene} detection`).toBeLessThan(1500 * slow);
-    expect.soft(r.translationMm, `${r.scene} position error`).toBeLessThan(10);
-    expect.soft(r.angleDeg, `${r.scene} angle error`).toBeLessThan(2);
-    expect.soft(r.jitterMm, `${r.scene} jitter`).toBeLessThan(2);
-    expect.soft(r.lossMs, `${r.scene} loss`).toBeLessThan(500 * slow);
-    expect.soft(r.otherScenes, `${r.scene} confused with`).toEqual([]);
-  }
-});
+test(
+  'detects, tracks and loses every page like the ground truth says',
+  { tag: '@regression' },
+  async ({ page }, info) => {
+    const slow = timeScale(info.project.name);
+    test.setTimeout(90_000);
+    await startTracking(page);
+    await installHelpers(page);
+    const results: StaticMetrics[] = [];
+    for (const scene of SCENES) results.push(await measureStatic(page, scene));
+    await info.attach('static-metrics', {
+      body: JSON.stringify(results, null, 2),
+      contentType: 'application/json',
+    });
+    console.table(results.map((r) => ({ ...r, otherScenes: r.otherScenes.join(' ') })));
+    for (const r of results) {
+      expect.soft(r.detectMs, `${r.scene} detection`).toBeLessThan(1500 * slow);
+      expect.soft(r.translationMm, `${r.scene} position error`).toBeLessThan(10);
+      expect.soft(r.angleDeg, `${r.scene} angle error`).toBeLessThan(2);
+      expect.soft(r.jitterMm, `${r.scene} jitter`).toBeLessThan(2);
+      expect.soft(r.lossMs, `${r.scene} loss`).toBeLessThan(500 * slow);
+      expect.soft(r.otherScenes, `${r.scene} confused with`).toEqual([]);
+    }
+  },
+);
 
 // The native filter of the core: with the library's default OneEuro settings the rotation
 // lags by about 12 degrees on this orbit (measured 2026-11-06), so OneEuro is not the default.
-test('keeps tracking a moving camera', async ({ page }, info) => {
+test('keeps tracking a moving camera', { tag: '@regression' }, async ({ page }, info) => {
   const slow = timeScale(info.project.name);
   test.setTimeout(60_000);
   await startTracking(page);
@@ -255,49 +259,55 @@ test('keeps tracking a moving camera', async ({ page }, info) => {
 // A phone turned upright: the frames become portrait. The tracker keeps running on a landscape
 // frame (the portrait one drawn rotated), so its camera is the phone camera turned by 90
 // degrees about the view axis: x' = y, y' = -x.
-test('keeps tracking when the camera turns to portrait', async ({ page }) => {
-  test.setTimeout(60_000);
-  await startTracking(page);
-  await installHelpers(page);
-  const result = await page.evaluate(async () => {
-    const w = window as unknown as {
-      waitUntil(condition: () => boolean, timeout?: number): Promise<boolean>;
-      poseError(p: number[], t: number[]): { translation: number; angle: number };
-    };
-    const vcam = window.__vcam!;
-    const tracking = window.__journey!.tracking;
-    vcam.setPose({ target: [0, 0], distance: 400, tilt: 20, azimuth: 0, roll: 0 });
-    await vcam.setPage('architecture');
-    const landscape = await w.waitUntil(() => tracking.scene === 'architecture');
+test(
+  'keeps tracking when the camera turns to portrait',
+  { tag: '@regression' },
+  async ({ page }) => {
+    test.setTimeout(60_000);
+    await startTracking(page);
+    await installHelpers(page);
+    const result = await page.evaluate(async () => {
+      const w = window as unknown as {
+        waitUntil(condition: () => boolean, timeout?: number): Promise<boolean>;
+        poseError(p: number[], t: number[]): { translation: number; angle: number };
+      };
+      const vcam = window.__vcam!;
+      const tracking = window.__journey!.tracking;
+      vcam.setPose({ target: [0, 0], distance: 400, tilt: 20, azimuth: 0, roll: 0 });
+      await vcam.setPage('architecture');
+      const landscape = await w.waitUntil(() => tracking.scene === 'architecture');
 
-    // Same lens, held upright: the long side keeps its 63 degrees.
-    vcam.setFrame({ width: 480, height: 640, fov: 63 });
-    const switched = performance.now();
-    await w.waitUntil(() => window.__journey!.videoSize?.[1] === 640);
-    // Tracking again on portrait frames, then ten more frames for the pose to settle.
-    const afterSwitch = tracking.processed;
-    await w.waitUntil(
-      () => tracking.processed > afterSwitch && tracking.scene === 'architecture',
-      15_000,
-    );
-    const settled = tracking.processed + 10;
-    await w.waitUntil(() => tracking.processed >= settled, 15_000);
-    const portrait = tracking.scene === 'architecture' && tracking.pose !== null;
-    const truth = vcam.getGroundTruth().modelView;
-    const turned = [...truth];
-    for (let c = 0; c < 4; c += 1) {
-      turned[c * 4] = truth[c * 4 + 1]!;
-      turned[c * 4 + 1] = -truth[c * 4]!;
-    }
-    const error = tracking.pose ? w.poseError(tracking.pose, turned) : null;
-    const lostSince = tracking.events.filter((e) => e.time > switched && e.type === 'lost').length;
-    return { landscape, portrait, error, lostSince };
-  });
-  expect(result.landscape).toBe(true);
-  expect(result.portrait).toBe(true);
-  expect(result.error!.translation).toBeLessThan(10);
-  expect(result.error!.angle).toBeLessThan(2);
-});
+      // Same lens, held upright: the long side keeps its 63 degrees.
+      vcam.setFrame({ width: 480, height: 640, fov: 63 });
+      const switched = performance.now();
+      await w.waitUntil(() => window.__journey!.videoSize?.[1] === 640);
+      // Tracking again on portrait frames, then ten more frames for the pose to settle.
+      const afterSwitch = tracking.processed;
+      await w.waitUntil(
+        () => tracking.processed > afterSwitch && tracking.scene === 'architecture',
+        15_000,
+      );
+      const settled = tracking.processed + 10;
+      await w.waitUntil(() => tracking.processed >= settled, 15_000);
+      const portrait = tracking.scene === 'architecture' && tracking.pose !== null;
+      const truth = vcam.getGroundTruth().modelView;
+      const turned = [...truth];
+      for (let c = 0; c < 4; c += 1) {
+        turned[c * 4] = truth[c * 4 + 1]!;
+        turned[c * 4 + 1] = -truth[c * 4]!;
+      }
+      const error = tracking.pose ? w.poseError(tracking.pose, turned) : null;
+      const lostSince = tracking.events.filter(
+        (e) => e.time > switched && e.type === 'lost',
+      ).length;
+      return { landscape, portrait, error, lostSince };
+    });
+    expect(result.landscape).toBe(true);
+    expect(result.portrait).toBe(true);
+    expect(result.error!.translation).toBeLessThan(10);
+    expect(result.error!.angle).toBeLessThan(2);
+  },
+);
 
 // A page swapped under a camera that jumps at the same moment (in the virtual camera; on the
 // book, a page turned while the phone moves): the tracker may take the new page for the old

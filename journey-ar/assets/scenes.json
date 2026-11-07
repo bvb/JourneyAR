@@ -123,6 +123,29 @@
         "min": 1,
         "max": 2
       }
+    },
+    {
+      "id": "daqri",
+      "page": "page166",
+      "model": "models/daqri.glb",
+      "nft": "nft/daqri/daqri",
+      "audio": {
+        "src": "audio/daqri.mp3",
+        "volume": 0.89,
+        "loop": true
+      },
+      "anchor": {
+        "center": [
+          58.8,
+          -7.4
+        ],
+        "width": 98.8
+      },
+      "pinch": {
+        "node": "DaqriBeach_Prefab",
+        "min": 1,
+        "max": 2
+      }
     }
   ]
 }

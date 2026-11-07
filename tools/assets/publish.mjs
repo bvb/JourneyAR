@@ -2,7 +2,8 @@
 // - writes the GLB files of the Unity export, optimized for size (assets/optimize.mjs), to
 //   journey-ar/assets/models/<id>.glb;
 // - copies the original MP3 tracks to journey-ar/assets/audio/<id>.mp3 without re-encoding (they
-//   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other);
+//   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other); a track in another format
+//   (the daqri waves, WAV) is encoded to MP3;
 // - writes journey-ar/assets/scenes.json (the NFT markers must exist: npm run nft:generate).
 //
 // The anchor of a scene (where its target sits on the page) is found by locating the original
@@ -13,10 +14,12 @@
 // Usage: node assets/publish.mjs [--reset-anchors]
 import { Logger, NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   AR_ASSETS,
+  FFMPEG,
   PAGE_SIZE_MM,
   PIPELINE_OUT,
   UNITY_PROJECT,
@@ -109,6 +112,32 @@ function centerOf(document, names, id) {
   return min.map((v, i) => round((v + max[i]) / 2, 4));
 }
 
+/** An audio file encoded to MP3 (stereo, 160 kbit/s), as bytes. */
+function encodeMp3(file) {
+  const encoded = spawnSync(
+    FFMPEG,
+    [
+      '-hide_banner',
+      '-v',
+      'error',
+      '-i',
+      file,
+      '-map_metadata',
+      '-1',
+      '-c:a',
+      'libmp3lame',
+      '-b:a',
+      '160k',
+      '-f',
+      'mp3',
+      'pipe:1',
+    ],
+    { maxBuffer: 1 << 28 },
+  );
+  if (encoded.status !== 0) throw new Error(`ffmpeg could not encode ${file}:\n${encoded.stderr}`);
+  return encoded.stdout;
+}
+
 function single(list, what, id) {
   if (list.length !== 1) throw new Error(`${id}: expected one ${what}, found ${list.length}`);
   return list[0];
@@ -160,21 +189,78 @@ for (const scene of SCENES) {
   // Expected skips (texture coordinates outside [0, 1] are not quantized) are not news.
   document.setLogger(new Logger(Logger.Verbosity.ERROR));
 
-  const audio = single(componentsOf(document, 'AudioSource'), 'AudioSource', scene.id).component;
-  if (path.extname(audio.clipPath).toLowerCase() !== '.mp3') {
-    throw new Error(`${scene.id}: audio ${audio.clipPath} is not an MP3 file`);
+  // One track per scene. Several sources playing the same clip at once (daqri: two, at 0.3 and
+  // 0.59) add up: one source at the sum of their volumes.
+  const sources = componentsOf(document, 'AudioSource').map(({ component }) => component);
+  if (sources.length === 0) throw new Error(`${scene.id}: no AudioSource`);
+  if (new Set(sources.map((source) => source.clipPath)).size !== 1) {
+    throw new Error(`${scene.id}: the AudioSources play different clips`);
   }
-  publishFile(
-    path.join(UNITY_PROJECT, audio.clipPath),
-    path.join(AR_ASSETS, 'audio', `${scene.id}.mp3`),
-  );
+  const audio = {
+    clipPath: sources[0].clipPath,
+    loop: sources[0].loop,
+    volume: Math.min(
+      1,
+      round(
+        sources.reduce((sum, source) => sum + source.volume, 0),
+        3,
+      ),
+    ),
+  };
+  const clip = path.join(UNITY_PROJECT, audio.clipPath);
+  const audioTarget = path.join(AR_ASSETS, 'audio', `${scene.id}.mp3`);
+  if (path.extname(clip).toLowerCase() === '.mp3') publishFile(clip, audioTarget);
+  else publishBytes(encodeMp3(clip), audioTarget, ', encoded from ' + path.basename(clip));
 
   // PinchScale clamps the node's uniform scale to [ScaleMin, ScaleMax]; store the limits relative
   // to the node's initial scale. Its SnapBack is not used: the app keeps the size (decision 19).
   // A scene may raise the upper limit (pinchMax in tools/scenes.mjs) and scale about the centre
   // of some of its models (pinchPivot: the centre in the scene frame, target width = 1).
-  const pinch = single(componentsOf(document, 'PinchScale'), 'PinchScale', scene.id);
-  const initialScale = pinch.node.getScale()[0];
+  // A scene without PinchScale has its pinch settings in tools/scenes.mjs.
+  const pinchScales = componentsOf(document, 'PinchScale');
+  const pinch =
+    pinchScales.length === 0 && scene.pinch
+      ? scene.pinch
+      : (() => {
+          const { node, component } = single(pinchScales, 'PinchScale', scene.id);
+          const initialScale = node.getScale()[0];
+          return {
+            node: node.getName(),
+            min: round(component.ScaleMin / initialScale, 3),
+            max: round(component.ScaleMax / initialScale, 3),
+          };
+        })();
+  if (
+    !document
+      .getRoot()
+      .listNodes()
+      .some((node) => node.getName() === pinch.node)
+  ) {
+    throw new Error(`${scene.id}: no pinch node ${pinch.node}`);
+  }
+
+  // Texture scrolling the export cannot express, as AnimatedUVs components (the app plays them).
+  for (const scroll of scene.uvScrolls ?? []) {
+    const node = document
+      .getRoot()
+      .listNodes()
+      .find((n) => n.getName() === scroll.node);
+    if (!node) throw new Error(`${scene.id}: no node ${scroll.node} to scroll`);
+    const extras = node.getExtras() ?? {};
+    node.setExtras({
+      ...extras,
+      unityComponents: [
+        ...(extras.unityComponents ?? []),
+        {
+          type: 'AnimatedUVs_Scroll',
+          enabled: true,
+          materialIndex: scroll.materialIndex,
+          uvAnimationRate: scroll.rate,
+          textureName: '_MainTex',
+        },
+      ],
+    });
+  }
 
   // NFT marker files from nft:generate; the app loads them by this URL prefix.
   for (const ext of ['iset', 'fset', 'fset3']) {
@@ -195,9 +281,9 @@ for (const scene of SCENES) {
     audio: { src: `audio/${scene.id}.mp3`, volume: audio.volume, loop: audio.loop },
     anchor: kept ?? locateAnchor(scene, target),
     pinch: {
-      node: pinch.node.getName(),
-      min: round(pinch.component.ScaleMin / initialScale, 3),
-      max: scene.pinchMax ?? round(pinch.component.ScaleMax / initialScale, 3),
+      node: pinch.node,
+      min: pinch.min,
+      max: scene.pinchMax ?? pinch.max,
       ...(scene.pinchPivot ? { pivot: centerOf(document, scene.pinchPivot, scene.id) } : {}),
     },
   });

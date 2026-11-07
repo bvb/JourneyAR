@@ -122,49 +122,55 @@ function screenOf(page: Page, point: [number, number, number]): Promise<Point> {
   }, point);
 }
 
-test('scales the scene with two fingers within its limits and keeps the size', async ({ page }) => {
-  test.setTimeout(90_000);
-  await start(page);
-  await showScene(page, 'architecture');
-  const cdp = await page.context().newCDPSession(page);
+test(
+  'scales the scene with two fingers within its limits and keeps the size',
+  { tag: '@regression' },
+  async ({ page }) => {
+    test.setTimeout(90_000);
+    await start(page);
+    await showScene(page, 'architecture');
+    const cdp = await page.context().newCDPSession(page);
 
-  await pinch(page, cdp, 100, 200);
-  // Pointer moves are delivered once per frame: wait for the last one.
-  await expect.poll(() => scale(page)).toBeCloseTo(2, 1);
-  // Architecture allows up to 3.22 times its size (the original PinchScale limits).
-  await pinch(page, cdp, 100, 400);
-  await expect.poll(() => scale(page)).toBeCloseTo(3.222, 2);
-  await page.waitForTimeout(600);
-  expect(await scale(page)).toBeCloseTo(3.222, 2);
+    await pinch(page, cdp, 100, 200);
+    // Pointer moves are delivered once per frame: wait for the last one.
+    await expect.poll(() => scale(page)).toBeCloseTo(2, 1);
+    // Architecture allows up to 3.22 times its size (the original PinchScale limits).
+    await pinch(page, cdp, 100, 400);
+    await expect.poll(() => scale(page)).toBeCloseTo(3.222, 2);
+    await page.waitForTimeout(600);
+    expect(await scale(page)).toBeCloseTo(3.222, 2);
 
-  // A new detection of the page keeps the size.
-  await hidePage(page);
-  await showScene(page, 'architecture');
-  expect(await scale(page)).toBeCloseTo(3.222, 2);
-});
+    // A new detection of the page keeps the size.
+    await hidePage(page);
+    await showScene(page, 'architecture');
+    expect(await scale(page)).toBeCloseTo(3.222, 2);
+  },
+);
 
-test('keeps the size where the original snapped back, and Landscape grows 3 times', async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
-  await start(page);
-  await showScene(page, 'character');
-  const cdp = await page.context().newCDPSession(page);
-  await pinch(page, cdp, 100, 180);
-  await expect.poll(() => scale(page)).toBeCloseTo(1.8, 1);
-  await page.waitForTimeout(600);
-  expect(await scale(page)).toBeCloseTo(1.8, 1);
+test(
+  'keeps the size where the original snapped back, and Landscape grows 3 times',
+  { tag: '@regression' },
+  async ({ page }) => {
+    test.setTimeout(90_000);
+    await start(page);
+    await showScene(page, 'character');
+    const cdp = await page.context().newCDPSession(page);
+    await pinch(page, cdp, 100, 180);
+    await expect.poll(() => scale(page)).toBeCloseTo(1.8, 1);
+    await page.waitForTimeout(600);
+    expect(await scale(page)).toBeCloseTo(1.8, 1);
 
-  await hidePage(page);
-  await showScene(page, 'landscape');
-  expect(await scale(page)).toBe(1);
-  await pinch(page, cdp, 60, 400);
-  await expect.poll(() => scale(page)).toBe(3);
-  // Each scene keeps its own size.
-  await hidePage(page);
-  await showScene(page, 'character');
-  expect(await scale(page)).toBeCloseTo(1.8, 1);
-});
+    await hidePage(page);
+    await showScene(page, 'landscape');
+    expect(await scale(page)).toBe(1);
+    await pinch(page, cdp, 60, 400);
+    await expect.poll(() => scale(page)).toBe(3);
+    // Each scene keeps its own size.
+    await hidePage(page);
+    await showScene(page, 'character');
+    expect(await scale(page)).toBeCloseTo(1.8, 1);
+  },
+);
 
 test('moves the scene along the page with a finger, and a double tap puts it back', async ({
   page,
@@ -201,30 +207,32 @@ test('moves the scene along the page with a finger, and a double tap puts it bac
   await expect.poll(() => placement(page)).toEqual({ scale: 1, offset: [0, 0] });
 });
 
-test('scales with the mouse wheel or a trackpad pinch, and moves with the mouse on a PC', async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
-  await start(page);
-  await showScene(page, 'sequence');
-  const { width, height } = page.viewportSize()!;
-  await page.mouse.move(width / 2, height / 3);
-  await page.mouse.wheel(0, -300);
-  await expect.poll(() => scale(page)).toBeGreaterThan(1.4);
-  await page.mouse.wheel(0, 2000);
-  await expect.poll(() => scale(page)).toBe(1);
+test(
+  'scales with the mouse wheel or a trackpad pinch, and moves with the mouse on a PC',
+  { tag: '@regression' },
+  async ({ page }) => {
+    test.setTimeout(90_000);
+    await start(page);
+    await showScene(page, 'sequence');
+    const { width, height } = page.viewportSize()!;
+    await page.mouse.move(width / 2, height / 3);
+    await page.mouse.wheel(0, -300);
+    await expect.poll(() => scale(page)).toBeGreaterThan(1.4);
+    await page.mouse.wheel(0, 2000);
+    await expect.poll(() => scale(page)).toBe(1);
 
-  // A trackpad pinch arrives as ctrl+wheel; the browser must not zoom the page.
-  await page.keyboard.down('Control');
-  await page.mouse.wheel(0, -40);
-  await page.keyboard.up('Control');
-  await expect.poll(() => scale(page)).toBeGreaterThan(1.3);
-  expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+    // A trackpad pinch arrives as ctrl+wheel; the browser must not zoom the page.
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -40);
+    await page.keyboard.up('Control');
+    await expect.poll(() => scale(page)).toBeGreaterThan(1.3);
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
 
-  await page.mouse.down();
-  await page.mouse.move(width / 2 - 80, height / 3, { steps: 8 });
-  await page.mouse.up();
-  await expect.poll(async () => (await placement(page)).offset[0]).toBeLessThan(-10);
-  await page.mouse.dblclick(width / 2, height / 3);
-  await expect.poll(() => placement(page)).toEqual({ scale: 1, offset: [0, 0] });
-});
+    await page.mouse.down();
+    await page.mouse.move(width / 2 - 80, height / 3, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => (await placement(page)).offset[0]).toBeLessThan(-10);
+    await page.mouse.dblclick(width / 2, height / 3);
+    await expect.poll(() => placement(page)).toEqual({ scale: 1, offset: [0, 0] });
+  },
+);

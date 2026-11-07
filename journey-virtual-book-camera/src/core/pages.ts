@@ -12,8 +12,9 @@ const urls = import.meta.glob<string>('../../../book-ar-pages/normalized/*.jpg',
   eager: true,
 });
 
-// Book order (pages 30, 57, 69, 103, 146); keys 1-5 of the interface follow it.
-const BOOK_ORDER = ['character', 'creature', 'landscape', 'architecture', 'sequence'];
+// Book order (pages 30, 57, 69, 103, 146 and the DAQRI page at the end); keys 1-6 of the
+// interface follow it.
+const BOOK_ORDER = ['character', 'creature', 'landscape', 'architecture', 'sequence', 'daqri'];
 
 function rank(id: string): number {
   const index = BOOK_ORDER.indexOf(id);
