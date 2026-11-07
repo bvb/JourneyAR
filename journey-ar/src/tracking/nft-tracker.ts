@@ -7,6 +7,10 @@ import {
 } from '@webarkit/jsartoolkit-nft/client';
 import type { SceneEntry } from '../scenes/manifest';
 import { type Intrinsics, cameraParamBytes } from './camera-params';
+import { PageSelector } from './page-selector';
+
+// While the shown page is suspicious (see PageSelector), search for the other pages this often.
+const VERIFY_INTERVAL_MS = 500;
 
 // ARLogLevel.Error: the core logs every loaded image level and feature set at Info.
 const LOG_ERRORS_ONLY = 3;
@@ -27,6 +31,8 @@ export interface TrackingResult {
    * the page centre, Y to the page top).
    */
   pose: Float64Array | null;
+  /** Tracking error of that page reported by the core (lower is better), or null. */
+  error: number | null;
   transitions: { type: 'found' | 'lost'; scene: string }[];
   processMs: number;
 }
@@ -34,10 +40,12 @@ export interface TrackingResult {
 /**
  * NFT tracking of the book pages with jsartoolkit-nft in a worker. All markers are loaded,
  * but one page is active at a time: while a page is tracked, no other page is searched for
- * (continuousDetection off), and the page counts as lost on its first untracked frame.
+ * (continuousDetection off) unless it tracks with a high error (PageSelector), and the page
+ * counts as lost on its first untracked frame.
  */
 export class NftTracker {
-  private active: string | null = null;
+  private readonly selector = new PageSelector();
+  private verifying = false;
 
   private constructor(
     private readonly worker: NFTTrackerWorker,
@@ -81,16 +89,25 @@ export class NftTracker {
     const result = await this.worker.process(frame, timestampMs);
     if (result.skipped) return null;
     const found = result.targets.filter((target) => target.found && target.pose);
-    // Keep the active page while it is tracked; otherwise take the first page found.
-    const pick = found.find((target) => this.scenesById.get(target.id) === this.active) ?? found[0];
-    const scene = pick ? (this.scenesById.get(pick.id) ?? null) : null;
-    const transitions: TrackingResult['transitions'] = [];
-    if (scene !== this.active) {
-      if (this.active) transitions.push({ type: 'lost', scene: this.active });
-      if (scene) transitions.push({ type: 'found', scene });
-      this.active = scene;
+    const selection = this.selector.select(
+      found.map((target) => ({ scene: this.scenesById.get(target.id)!, error: target.error })),
+    );
+    if (selection.verify !== this.verifying) {
+      this.verifying = selection.verify;
+      void this.worker.configure({
+        continuousDetection: selection.verify,
+        detectionInterval: VERIFY_INTERVAL_MS,
+      });
     }
-    return { scene, pose: pick?.pose ?? null, transitions, processMs: result.processMs };
+    const scene = selection.candidate?.scene ?? null;
+    const pick = found.find((target) => this.scenesById.get(target.id) === scene);
+    return {
+      scene,
+      pose: pick?.pose ?? null,
+      error: pick?.error ?? null,
+      transitions: selection.transitions,
+      processMs: result.processMs,
+    };
   }
 
   /** Projection matrix (column-major) for showing the frame in `viewport`. */

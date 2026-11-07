@@ -16,13 +16,30 @@ async function showScene(page: Page, id: string): Promise<void> {
     },
     { id, view: VIEW },
   );
-  await page.waitForFunction(
-    (id) => window.__journey!.scenes.active === id && window.__journey!.scenes.shown,
-    id,
-    {
-      timeout: 30_000,
-    },
-  );
+  try {
+    await page.waitForFunction(
+      (id) => window.__journey!.scenes.active === id && window.__journey!.scenes.shown,
+      id,
+      { timeout: 30_000 },
+    );
+  } catch (error) {
+    // Say where it got stuck: tracking, loading or showing.
+    const state = await page.evaluate(() => {
+      const j = window.__journey!;
+      return {
+        scenes: j.scenes,
+        tracking: {
+          scene: j.tracking.scene,
+          error: j.tracking.error,
+          processed: j.tracking.processed,
+          events: j.tracking.events.slice(-6),
+        },
+        videoFrames: j.videoFrames,
+        vcam: window.__vcam!.getPage(),
+      };
+    });
+    throw new Error(`Scene "${id}" not shown: ${JSON.stringify(state)}`, { cause: error });
+  }
 }
 
 async function start(page: Page): Promise<void> {

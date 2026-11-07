@@ -1,3 +1,4 @@
+import type { SceneAudioState } from '../audio/scene-audio';
 import type { FrameSourceConfig } from '../config/frame-source';
 import type { ArScenesState } from '../scenes/ar-scenes';
 
@@ -16,6 +17,8 @@ export interface JourneyTestHooks {
   videoSize: [number, number] | null;
   tracking: TrackingHooks;
   scenes: ArScenesState;
+  /** Sound state (a getter: reading it measures the current levels). */
+  readonly audio?: SceneAudioState;
 }
 
 /** Tracker output, for comparing with the virtual camera's ground truth. */
@@ -28,6 +31,8 @@ export interface TrackingHooks {
   pose: number[] | null;
   /** The pose shown on screen (smoothed), updated every display frame. */
   shownPose: number[] | null;
+  /** Tracking error reported by the core for the tracked page. */
+  error: number | null;
   /** Found/lost transitions with their time (performance.now()). */
   events: { type: 'found' | 'lost'; scene: string; time: number }[];
   /** Worker processing times of the last frames, ms. */

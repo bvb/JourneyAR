@@ -298,3 +298,41 @@ test('keeps tracking when the camera turns to portrait', async ({ page }) => {
   expect(result.error!.translation).toBeLessThan(10);
   expect(result.error!.angle).toBeLessThan(2);
 });
+
+// A page swapped under a camera that jumps at the same moment (in the virtual camera; on the
+// book, a page turned while the phone moves): the tracker may take the new page for the old
+// one. A page held with a high tracking error makes it look for the other pages again.
+test('follows the page when it changes under the camera', async ({ page }) => {
+  test.setTimeout(120_000);
+  await startTracking(page);
+  await installHelpers(page);
+  const timings = await page.evaluate(async () => {
+    const w = window as unknown as {
+      waitUntil(condition: () => boolean, timeout?: number): Promise<boolean>;
+    };
+    const vcam = window.__vcam!;
+    const tracking = window.__journey!.tracking;
+    await w.waitUntil(() => tracking.scene === 'character', 10_000);
+    const swaps: [string, number, number][] = [
+      ['architecture', 450, 35],
+      ['creature', 300, 0],
+      ['sequence', 420, 25],
+      ['landscape', 350, 10],
+      ['character', 450, 35],
+      ['architecture', 300, 0],
+      ['sequence', 380, 30],
+      ['creature', 450, 20],
+    ];
+    const out: { page: string; ms: number | null }[] = [];
+    for (const [id, distance, tilt] of swaps) {
+      const start = performance.now();
+      vcam.setPose({ target: [0, 0], distance, tilt, azimuth: 0, roll: 0 });
+      await vcam.setPage(id);
+      const ok = await w.waitUntil(() => tracking.scene === id, 5000);
+      out.push({ page: id, ms: ok ? performance.now() - start : null });
+    }
+    return out;
+  });
+  console.log('page swaps:', JSON.stringify(timings));
+  for (const { page: id, ms } of timings) expect(ms, `${id} not tracked`).not.toBeNull();
+});
