@@ -12,6 +12,7 @@ import {
 import { parseFrameSource } from './config/frame-source';
 import { parseTrackingOptions } from './config/tracking-options';
 import { installTestHooks } from './debug/test-hooks';
+import { attachPinchGesture } from './interaction/pinch-gesture';
 import { ArScenes } from './scenes/ar-scenes';
 import { configureLegacyRendering } from './scenes/legacy-rendering';
 import { loadScenesManifest } from './scenes/manifest';
@@ -71,6 +72,13 @@ const arScenes = new ArScenes(anchor, manifest.scenes, import.meta.env.BASE_URL,
   status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
 });
 let preloading = false;
+
+// Pinch to scale the shown scene: the only interaction (two fingers; wheel or trackpad on a PC).
+attachPinchGesture(canvas, {
+  begin: () => arScenes.pinchBegin(),
+  change: (ratio) => arScenes.pinchChange(ratio),
+  end: () => arScenes.pinchEnd(),
+});
 
 function resize(): void {
   renderer.setSize(window.innerWidth, window.innerHeight, false);

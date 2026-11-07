@@ -1,4 +1,5 @@
-import { AnimationMixer, Group, PointLight, SpotLight } from 'three';
+import { AnimationMixer, Group, type Object3D, PointLight, SpotLight, Vector3 } from 'three';
+import { PinchScale } from '../interaction/pinch-scale';
 import { loadScene } from './load-scene';
 import { type SceneEntry, anchorMatrix } from './manifest';
 import type { PreparedScene } from './prepare-scene';
@@ -9,6 +10,10 @@ interface MountedScene {
   /** Places the scene on its page: target frame -> page frame (scenes.json anchor). */
   container: Group;
   mixer: AnimationMixer;
+  /** The node the original PinchScale script scaled (not animated), and its own scale. */
+  pinchNode: Object3D | null;
+  pinchBase: Vector3;
+  pinch: PinchScale;
 }
 
 export interface ArScenesState {
@@ -19,6 +24,8 @@ export interface ArScenesState {
   loaded: string[];
   /** Animation time of the shown scene, seconds since it appeared. */
   time: number;
+  /** Pinch scale of the shown scene (1: original size). */
+  scale: number;
 }
 
 /**
@@ -26,6 +33,9 @@ export interface ArScenesState {
  * shown while its page is tracked and hidden at once when the page is lost; every new detection
  * starts its animations and texture scrolling from the beginning. Scenes load lazily, on the
  * first detection of their page, and in the background with preloadAll().
+ *
+ * Pinching scales the scene's pinch node (scenes.json `pinch`) about its own origin, within the
+ * original limits; the size goes back to 1 on every detection.
  */
 export class ArScenes {
   private readonly loads = new Map<string, Promise<MountedScene>>();
@@ -65,6 +75,21 @@ export class ArScenes {
     if (!this.active) return;
     this.active.mixer.update(deltaSeconds);
     this.active.prepared.update(deltaSeconds);
+    if (this.active.pinch.tick(deltaSeconds)) this.applyPinch(this.active);
+  }
+
+  pinchBegin(): void {
+    this.active?.pinch.begin();
+  }
+
+  pinchChange(ratio: number): void {
+    if (!this.active) return;
+    this.active.pinch.change(ratio);
+    this.applyPinch(this.active);
+  }
+
+  pinchEnd(): void {
+    this.active?.pinch.end();
   }
 
   get state(): ArScenesState {
@@ -73,6 +98,7 @@ export class ArScenes {
       shown: this.active?.container.visible ?? false,
       loaded: [...this.loaded],
       time: this.active?.mixer.time ?? 0,
+      scale: this.active?.pinch.factor ?? 1,
     };
   }
 
@@ -104,7 +130,21 @@ export class ArScenes {
     });
     this.anchor.add(container);
     this.loaded.add(entry.id);
-    return { entry, prepared, container, mixer: new AnimationMixer(prepared.root) };
+    const pinchNode = prepared.root.getObjectByName(entry.pinch.node) ?? null;
+    if (!pinchNode) console.warn(`Scene "${entry.id}": no pinch node "${entry.pinch.node}"`);
+    return {
+      entry,
+      prepared,
+      container,
+      mixer: new AnimationMixer(prepared.root),
+      pinchNode,
+      pinchBase: pinchNode ? pinchNode.scale.clone() : new Vector3(1, 1, 1),
+      pinch: new PinchScale(entry.pinch),
+    };
+  }
+
+  private applyPinch(scene: MountedScene): void {
+    scene.pinchNode?.scale.copy(scene.pinchBase).multiplyScalar(scene.pinch.factor);
   }
 
   private start(scene: MountedScene): void {
@@ -112,6 +152,8 @@ export class ArScenes {
     for (const clip of scene.prepared.animations) scene.mixer.clipAction(clip).reset().play();
     scene.mixer.setTime(0);
     scene.prepared.restart();
+    scene.pinch.reset();
+    this.applyPinch(scene);
     scene.container.visible = true;
     this.active = scene;
   }
