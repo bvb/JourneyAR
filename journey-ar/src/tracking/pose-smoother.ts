@@ -19,7 +19,7 @@ export interface SmoothingSettings {
 }
 
 export const DEFAULT_SMOOTHING: SmoothingSettings = {
-  minCutoff: 0.5,
+  minCutoff: 0.2,
   beta: 0.02,
   rotationBeta: 1,
   speedCutoff: 1,
