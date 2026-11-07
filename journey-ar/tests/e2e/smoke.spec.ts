@@ -18,6 +18,16 @@ test('renders the three.js scene without errors', async ({ page }) => {
   expect(hooks?.ready).toBe(true);
   expect(hooks?.webglVersion).toBe(2);
   expect(hooks?.source).toEqual({ kind: 'camera' });
+  // Opaque: the camera picture is drawn in the canvas, so additive light adds to it (over a
+  // transparent canvas the light's alpha would hide the video behind it).
+  const alpha = await page.evaluate(
+    () =>
+      document
+        .querySelector<HTMLCanvasElement>('canvas#scene')!
+        .getContext('webgl2')!
+        .getContextAttributes()!.alpha,
+  );
+  expect(alpha).toBe(false);
   expect(errors).toEqual([]);
 });
 

@@ -67,7 +67,7 @@ describe('parseScenesManifest', () => {
         nft: 'nft/a/a',
         audio: { src: 'audio/a.mp3', volume: 1, loop: true },
         anchor: { center: [0, 0], width: 200 },
-        pinch: { node: 'Root', min: 1, max: 2, snapBack: false },
+        pinch: { node: 'Root', min: 1, max: 2 },
       },
     ],
   };

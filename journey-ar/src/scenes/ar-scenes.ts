@@ -1,19 +1,32 @@
-import { AnimationMixer, Group, type Object3D, PointLight, SpotLight, Vector3 } from 'three';
-import { PinchScale } from '../interaction/pinch-scale';
+import {
+  AnimationMixer,
+  Group,
+  Matrix4,
+  type Object3D,
+  PointLight,
+  SpotLight,
+  Vector3,
+} from 'three';
+import { ScenePlacement } from '../interaction/scene-placement';
 import { loadScene } from './load-scene';
-import { type SceneEntry, anchorMatrix } from './manifest';
+import { type SceneEntry, type ScenesManifest, anchorMatrix } from './manifest';
 import type { PreparedScene } from './prepare-scene';
 
 interface MountedScene {
   entry: SceneEntry;
   prepared: PreparedScene;
-  /** Places the scene on its page: target frame -> page frame (scenes.json anchor). */
+  /**
+   * Places the scene on its page: target frame -> page frame (scenes.json anchor), moved by the
+   * user's offset.
+   */
   container: Group;
+  /** Target frame -> page frame without the offset. */
+  anchorMatrix: Matrix4;
   mixer: AnimationMixer;
   /** The node the original PinchScale script scaled (not animated), and its own scale. */
   pinchNode: Object3D | null;
   pinchBase: Vector3;
-  pinch: PinchScale;
+  placement: ScenePlacement;
 }
 
 export interface ArScenesState {
@@ -26,6 +39,8 @@ export interface ArScenesState {
   time: number;
   /** Pinch scale of the shown scene (1: original size). */
   scale: number;
+  /** Offset of the shown scene on the page (page plane, mm). */
+  offset: [number, number];
 }
 
 /**
@@ -35,20 +50,25 @@ export interface ArScenesState {
  * first detection of their page, and in the background with preloadAll().
  *
  * Pinching scales the scene's pinch node (scenes.json `pinch`) about its own origin, within the
- * original limits; the size goes back to 1 on every detection.
+ * limits, and dragging moves the scene on the page. Each scene keeps its size and place across
+ * detections until resetPlacement().
  */
 export class ArScenes {
   private readonly loads = new Map<string, Promise<MountedScene>>();
-  private readonly loaded = new Set<string>();
+  private readonly mounted = new Map<string, MountedScene>();
   private active: MountedScene | null = null;
   private activeId: string | null = null;
 
+  private readonly scenes: readonly SceneEntry[];
+
   constructor(
     private readonly anchor: Group,
-    private readonly scenes: readonly SceneEntry[],
+    private readonly manifest: ScenesManifest,
     private readonly baseUrl: string,
     private readonly onError: (error: unknown) => void,
-  ) {}
+  ) {
+    this.scenes = manifest.scenes;
+  }
 
   /** Loads the scenes one after another (book order), so they are ready when their page shows. */
   async preloadAll(): Promise<void> {
@@ -75,30 +95,52 @@ export class ArScenes {
     if (!this.active) return;
     this.active.mixer.update(deltaSeconds);
     this.active.prepared.update(deltaSeconds);
-    if (this.active.pinch.tick(deltaSeconds)) this.applyPinch(this.active);
   }
 
   pinchBegin(): void {
-    this.active?.pinch.begin();
+    this.active?.placement.scaleBegin();
   }
 
   pinchChange(ratio: number): void {
     if (!this.active) return;
-    this.active.pinch.change(ratio);
-    this.applyPinch(this.active);
+    this.active.placement.scaleChange(ratio);
+    this.applyPlacement(this.active);
   }
 
   pinchEnd(): void {
-    this.active?.pinch.end();
+    this.active?.placement.scaleEnd();
+  }
+
+  /** Moves the shown scene on the page by (dx, dy) mm. */
+  moveBy(dx: number, dy: number): void {
+    if (!this.active) return;
+    this.active.placement.moveBy(dx, dy);
+    this.applyPlacement(this.active);
+  }
+
+  /** Puts the shown scene back to its original size and place. */
+  resetPlacement(): void {
+    if (!this.active) return;
+    this.active.placement.reset();
+    this.applyPlacement(this.active);
+  }
+
+  /** Centre of the scene's target on the page with the user's offset, mm (page frame). */
+  centerOf(id: string): [number, number] | null {
+    const entry = this.scenes.find((s) => s.id === id);
+    if (!entry) return null;
+    const offset = this.mounted.get(id)?.placement.offset ?? [0, 0];
+    return [entry.anchor.center[0] + offset[0], entry.anchor.center[1] + offset[1]];
   }
 
   get state(): ArScenesState {
     return {
       active: this.activeId,
       shown: this.active?.container.visible ?? false,
-      loaded: [...this.loaded],
+      loaded: [...this.mounted.keys()],
       time: this.active?.mixer.time ?? 0,
-      scale: this.active?.pinch.factor ?? 1,
+      scale: this.active?.placement.scale ?? 1,
+      offset: this.active ? [...this.active.placement.offset] : [0, 0],
     };
   }
 
@@ -118,7 +160,6 @@ export class ArScenes {
     const container = new Group();
     container.name = `scene:${entry.id}`;
     container.matrixAutoUpdate = false;
-    container.matrix.copy(anchorMatrix(entry.anchor));
     container.visible = false;
     container.add(prepared.root);
     // Unity light ranges are world distances, exported in target units (target width = 1);
@@ -129,22 +170,28 @@ export class ArScenes {
       }
     });
     this.anchor.add(container);
-    this.loaded.add(entry.id);
     const pinchNode = prepared.root.getObjectByName(entry.pinch.node) ?? null;
     if (!pinchNode) console.warn(`Scene "${entry.id}": no pinch node "${entry.pinch.node}"`);
-    return {
+    const { width, height } = this.manifest.page;
+    const scene: MountedScene = {
       entry,
       prepared,
       container,
+      anchorMatrix: anchorMatrix(entry.anchor),
       mixer: new AnimationMixer(prepared.root),
       pinchNode,
       pinchBase: pinchNode ? pinchNode.scale.clone() : new Vector3(1, 1, 1),
-      pinch: new PinchScale(entry.pinch),
+      placement: new ScenePlacement(entry.pinch, { halfWidth: width / 2, halfHeight: height / 2 }),
     };
+    this.mounted.set(entry.id, scene);
+    this.applyPlacement(scene);
+    return scene;
   }
 
-  private applyPinch(scene: MountedScene): void {
-    scene.pinchNode?.scale.copy(scene.pinchBase).multiplyScalar(scene.pinch.factor);
+  private applyPlacement(scene: MountedScene): void {
+    const { scale, offset } = scene.placement;
+    scene.pinchNode?.scale.copy(scene.pinchBase).multiplyScalar(scale);
+    scene.container.matrix.makeTranslation(offset[0], offset[1], 0).multiply(scene.anchorMatrix);
   }
 
   private start(scene: MountedScene): void {
@@ -152,8 +199,6 @@ export class ArScenes {
     for (const clip of scene.prepared.animations) scene.mixer.clipAction(clip).reset().play();
     scene.mixer.setTime(0);
     scene.prepared.restart();
-    scene.pinch.reset();
-    this.applyPinch(scene);
     scene.container.visible = true;
     this.active = scene;
   }

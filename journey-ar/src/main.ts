@@ -14,8 +14,10 @@ import { SceneAudio } from './audio/scene-audio';
 import { parseFrameSource } from './config/frame-source';
 import { parseTrackingOptions } from './config/tracking-options';
 import { installTestHooks } from './debug/test-hooks';
-import { attachPinchGesture } from './interaction/pinch-gesture';
+import { pagePointAt } from './interaction/page-point';
+import { type ScreenPoint, attachSceneGestures } from './interaction/scene-gestures';
 import { ArScenes } from './scenes/ar-scenes';
+import { VideoBackground } from './render/video-background';
 import { configureLegacyRendering } from './scenes/legacy-rendering';
 import { loadScenesManifest } from './scenes/manifest';
 import { type FrameSource, createFrameSource } from './sources/frame-source';
@@ -32,7 +34,18 @@ const debug = new URLSearchParams(window.location.search).has('debug');
 const trackingOptions = parseTrackingOptions(window.location.search);
 const manifest = await loadScenesManifest(`${import.meta.env.BASE_URL}scenes.json`);
 
-const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+// An opaque context: the camera picture is drawn in the canvas (VideoBackground), not under it.
+// (three.js creates its own context with alpha and only clears it opaque.)
+const context = canvas.getContext('webgl2', {
+  alpha: false,
+  antialias: true,
+  depth: true,
+  stencil: false,
+  premultipliedAlpha: true,
+  preserveDrawingBuffer: false,
+});
+if (!context) throw new Error('WebGL 2 is not available');
+const renderer = new WebGLRenderer({ canvas, context, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const scene = new Scene();
@@ -68,8 +81,13 @@ debugGroup.add(
 );
 scene.add(anchor);
 
+// The camera picture, drawn behind the AR content (the <video> element only decodes it).
+const video = document.querySelector<HTMLVideoElement>('#video')!;
+const background = new VideoBackground(video);
+scene.add(background.mesh);
+
 const status = document.querySelector<HTMLElement>('#status')!;
-const arScenes = new ArScenes(anchor, manifest.scenes, import.meta.env.BASE_URL, (error) => {
+const arScenes = new ArScenes(anchor, manifest, import.meta.env.BASE_URL, (error) => {
   console.error(error);
   status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
 });
@@ -87,11 +105,28 @@ document.addEventListener('visibilitychange', () => {
   else if (running) audio.resume();
 });
 
-// Pinch to scale the shown scene: the only interaction (two fingers; wheel or trackpad on a PC).
-attachPinchGesture(canvas, {
-  begin: () => arScenes.pinchBegin(),
-  change: (ratio) => arScenes.pinchChange(ratio),
-  end: () => arScenes.pinchEnd(),
+// The point of the page plane under a point of the screen, as the page is shown now.
+function pageUnder(point: ScreenPoint): Vector3 | null {
+  if (!anchor.visible) return null;
+  const rect = canvas!.getBoundingClientRect();
+  let x = ((point.x - rect.left) / rect.width) * 2 - 1;
+  const y = 1 - ((point.y - rect.top) / rect.height) * 2;
+  if (canvas!.classList.contains('mirrored')) x = -x;
+  return pagePointAt(x, y, anchor.matrix, camera.projectionMatrixInverse);
+}
+
+// Placing the shown scene: pinch to scale, drag to move it along the page (the page point under
+// the fingers follows them), double tap to reset. Wheel or trackpad and the mouse on a PC.
+attachSceneGestures(canvas, {
+  scaleBegin: () => arScenes.pinchBegin(),
+  scaleChange: (ratio) => arScenes.pinchChange(ratio),
+  scaleEnd: () => arScenes.pinchEnd(),
+  move(from, to) {
+    const a = pageUnder(from);
+    const b = pageUnder(to);
+    if (a && b) arScenes.moveBy(b.x - a.x, b.y - a.y);
+  },
+  reset: () => arScenes.resetPlacement(),
 });
 
 function resize(): void {
@@ -125,7 +160,6 @@ if (hooks) Object.defineProperty(hooks, 'audio', { get: () => audio.state });
 
 // Frame source: started and stopped with the button (the camera needs a user gesture, and so
 // will the audio on iOS).
-const video = document.querySelector<HTMLVideoElement>('#video')!;
 const startButton = document.querySelector<HTMLButtonElement>('#start')!;
 let frameSource: FrameSource | null = null;
 let tracking: TrackingLoop | null = null;
@@ -238,10 +272,10 @@ renderer.setAnimationLoop((time) => {
     smoother.frame(deltaSeconds, anchor.matrix);
     if (hooks) hooks.tracking.shownPose = anchor.matrix.toArray();
     // The sound comes from above the scene's centre on the page (camera frame, metres).
-    const entry = manifest.scenes.find((s) => s.id === trackedScene);
-    if (entry) {
+    const center = trackedScene ? arScenes.centerOf(trackedScene) : null;
+    if (center) {
       soundPoint
-        .set(entry.anchor.center[0], entry.anchor.center[1], SPATIAL.height)
+        .set(center[0], center[1], SPATIAL.height)
         .applyMatrix4(anchor.matrix)
         .multiplyScalar(0.001);
       audio.setSourcePosition(soundPoint.x, soundPoint.y, soundPoint.z);
@@ -250,7 +284,8 @@ renderer.setAnimationLoop((time) => {
   const tracker = tracking?.activeTracker;
   const geometry = tracking?.geometry;
   if (tracker && geometry) {
-    // The video is shown with object-fit: cover, so the projection is fitted the same way.
+    // The video is shown cropped to cover the view (VideoBackground); the projection is fitted
+    // the same way.
     camera.projectionMatrix.fromArray(
       tracker.projectionFor(
         { width: window.innerWidth, height: window.innerHeight, fit: 'cover' },
@@ -259,6 +294,7 @@ renderer.setAnimationLoop((time) => {
     );
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
+  background.update(window.innerWidth, window.innerHeight, running);
   renderer.render(scene, camera);
   if (hooks) {
     hooks.framesRendered += 1;

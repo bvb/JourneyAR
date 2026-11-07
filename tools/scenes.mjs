@@ -1,9 +1,11 @@
 // Scenes of the app: export id (Unity target), tracked page in book-ar-pages and the original
 // Vuforia target. The daqri page (page166) is left out for now (see .plans/plan.md).
+// `pinchMax` replaces the original upper pinch limit (relative to the initial size).
 export const SCENES = [
   { id: 'character', page: 'page32', target: 'Character' },
   { id: 'creature', page: 'page52', target: 'Creature' },
-  { id: 'landscape', page: 'page63', target: 'Landscape' },
+  // Up to 4 times (the original: 1.43), to look at the small models inside the sphere.
+  { id: 'landscape', page: 'page63', target: 'Landscape', pinchMax: 4 },
   { id: 'architecture', page: 'page90', target: 'Architecture' },
   { id: 'sequence', page: 'page131', target: 'Sequence' },
 ];

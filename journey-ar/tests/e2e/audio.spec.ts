@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { SPATIAL } from '../../src/audio/loop-bounds';
+import { RESUME_SECONDS, SPATIAL } from '../../src/audio/loop-bounds';
 import { collectErrors } from './helpers';
 
 /** Gain of the inverse distance model (as the app's PannerNode is set up). */
@@ -57,12 +57,38 @@ test('plays the track of the found page from the start and stops it when the pag
   await expect.poll(async () => (await audio(page)).playing).toBeNull();
   await expect.poll(async () => (await audio(page)).levels.wet).toBeLessThan(0.0001);
 
-  // Found again: the track starts from the beginning (it had played for more than 2.5 s).
+  // Found again after more than RESUME_SECONDS: the track starts from the beginning (it had
+  // played for more than 2.5 s).
+  await page.waitForTimeout(RESUME_SECONDS * 1000 + 500);
   await showPage(page, 'architecture');
   await expect
     .poll(async () => (await audio(page)).playing, { timeout: 30_000 })
     .toBe('architecture');
   expect((await audio(page)).position).toBeLessThan(1.5);
+  expect(errors).toEqual([]);
+});
+
+test('continues the track where it stopped when the page is found again soon', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = await start(page);
+  await showPage(page, 'sequence');
+  await expect.poll(async () => (await audio(page)).playing, { timeout: 30_000 }).toBe('sequence');
+  await expect
+    .poll(async () => (await audio(page)).position, { timeout: 10_000 })
+    .toBeGreaterThan(3);
+
+  // Lost for a second and a half: the track pauses where the loss was seen.
+  const before = (await audio(page)).position;
+  await showPage(page, null);
+  await expect.poll(async () => (await audio(page)).playing).toBeNull();
+  await page.waitForTimeout(1500);
+  await showPage(page, 'sequence');
+  await expect.poll(async () => (await audio(page)).playing, { timeout: 30_000 }).toBe('sequence');
+  const after = (await audio(page)).position;
+  // Continued (not from the start), and paused while lost (not 1.5 s further on): the loss and
+  // the new detection each take a few tracker frames.
+  expect(after).toBeGreaterThan(before);
+  expect(after).toBeLessThan(before + 1.2);
   expect(errors).toEqual([]);
 });
 

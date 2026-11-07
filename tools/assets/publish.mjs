@@ -147,7 +147,8 @@ for (const scene of SCENES) {
   );
 
   // PinchScale clamps the node's uniform scale to [ScaleMin, ScaleMax]; store the limits relative
-  // to the node's initial scale.
+  // to the node's initial scale. Its SnapBack is not used: the app keeps the size (decision 19).
+  // A scene may raise the upper limit (pinchMax in tools/scenes.mjs).
   const pinch = single(componentsOf(document, 'PinchScale'), 'PinchScale', scene.id);
   const initialScale = pinch.node.getScale()[0];
 
@@ -172,8 +173,7 @@ for (const scene of SCENES) {
     pinch: {
       node: pinch.node.getName(),
       min: round(pinch.component.ScaleMin / initialScale, 3),
-      max: round(pinch.component.ScaleMax / initialScale, 3),
-      snapBack: pinch.component.SnapBack,
+      max: scene.pinchMax ?? round(pinch.component.ScaleMax / initialScale, 3),
     },
   });
 }

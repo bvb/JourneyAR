@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SPATIAL, distanceGain, loopBounds } from '../../src/audio/loop-bounds';
+import { SPATIAL, distanceGain, loopBounds, trackPosition } from '../../src/audio/loop-bounds';
 
 describe('loopBounds', () => {
   const sampleRate = 1000;
@@ -41,5 +41,23 @@ describe('distanceGain', () => {
     for (let d = 0.3; d < 2; d += 0.01) {
       expect(distanceGain(d) - distanceGain(d + 0.01)).toBeLessThan(0.02);
     }
+  });
+});
+
+describe('trackPosition', () => {
+  const loop = { start: 0.05, end: 60.05 };
+
+  it('advances from where the track started', () => {
+    expect(trackPosition(0.05, 10, loop, true, 60.1)).toBeCloseTo(10.05);
+    expect(trackPosition(42, 3, loop, true, 60.1)).toBeCloseTo(45);
+  });
+
+  it('wraps a looping track from the loop end to the loop start', () => {
+    expect(trackPosition(59, 2, loop, true, 60.1)).toBeCloseTo(1);
+    expect(trackPosition(0.05, 125, loop, true, 60.1)).toBeCloseTo(5.05);
+  });
+
+  it('stops a track that does not loop at its end', () => {
+    expect(trackPosition(59, 5, loop, false, 60.1)).toBeCloseTo(60.1);
   });
 });

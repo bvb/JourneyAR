@@ -66,7 +66,8 @@ test('hides the scene in the frame the page is lost and restarts it on return', 
     return { atLoss, triangles: journey.trianglesRendered };
   });
   expect(lost.atLoss).toMatchObject({ active: null, shown: false });
-  expect(lost.triangles).toBe(0);
+  // Only the camera picture is drawn: one quad.
+  expect(lost.triangles).toBe(2);
 
   // Back to the page: the animations start again from the beginning.
   await showPage(page, 'creature');

@@ -20,15 +20,13 @@ export interface SceneAudio {
   loop: boolean;
 }
 
-/** Pinch-to-scale settings of the original PinchScale script. */
+/** Pinch-to-scale settings, from the original PinchScale script. */
 export interface ScenePinch {
   /** Name of the scene root node that is scaled. */
   node: string;
   /** Scale limits relative to the node's initial scale. */
   min: number;
   max: number;
-  /** Return to the initial scale when the gesture ends. */
-  snapBack: boolean;
 }
 
 export interface SceneEntry {
@@ -106,7 +104,6 @@ function parseScene(value: unknown, path: string): SceneEntry {
       node: stringAt(pinch['node'], `${path}.pinch.node`),
       min,
       max,
-      snapBack: booleanAt(pinch['snapBack'], `${path}.pinch.snapBack`),
     },
   };
 }
