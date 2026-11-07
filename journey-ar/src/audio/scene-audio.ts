@@ -1,5 +1,7 @@
+import { ResumeWindow } from '../scenes/resume-window';
 import type { SceneEntry } from '../scenes/manifest';
-import { RESUME_SECONDS, SPATIAL, loopBounds, trackPosition } from './loop-bounds';
+import type { LoadProgress } from '../ui/load-progress';
+import { SPATIAL, loopBounds, trackPosition } from './loop-bounds';
 
 interface Track {
   buffer: AudioBuffer;
@@ -16,13 +18,6 @@ interface Playing {
   /** Context time when it started, and the track position it started from. */
   startedAt: number;
   from: number;
-}
-
-/** Where a track stopped when its page was lost, and when (performance.now(), ms). */
-interface Stopped {
-  id: string;
-  position: number;
-  time: number;
 }
 
 export interface SceneAudioState {
@@ -44,7 +39,7 @@ const DECODED_LIMIT = 2;
 
 /**
  * The scene soundtracks. A page found starts its track from the beginning (fade in), a page
- * lost stops it (fade out); a page found again within RESUME_SECONDS continues its track where
+ * lost stops it (fade out); a page found again soon (ResumeWindow) continues its track where
  * it stopped. The sound is spatial: a source at the scene's centre on the page,
  * heard from the camera; the volume follows the distance smoothly (inverse model, see SPATIAL)
  * and the stereo balance follows the direction. Tracks loop without the MP3 gap.
@@ -57,7 +52,9 @@ export class SceneAudio {
   private readonly files = new Map<string, Promise<ArrayBuffer>>();
   private readonly tracks = new Map<string, Promise<Track>>();
   private playing: Playing | null = null;
-  private stopped: Stopped | null = null;
+  /** The last track stopped, where it stopped, and whether its page comes back soon. */
+  private stoppedAt = 0;
+  private readonly resumeWindow = new ResumeWindow();
   private activeId: string | null = null;
   private distance: number | null = null;
 
@@ -65,6 +62,8 @@ export class SceneAudio {
     private readonly scenes: readonly SceneEntry[],
     private readonly baseUrl: string,
     private readonly onError: (error: unknown) => void,
+    /** Reports the soundtrack downloads (task `audio:<id>`). */
+    private readonly progress?: LoadProgress,
   ) {}
 
   /**
@@ -108,11 +107,7 @@ export class SceneAudio {
     this.stop();
     const scene = id ? this.scenes.find((s) => s.id === id) : undefined;
     if (!scene || !this.context) return;
-    const stopped = this.stopped;
-    const resumeAt =
-      stopped?.id === scene.id && performance.now() - stopped.time <= RESUME_SECONDS * 1000
-        ? stopped.position
-        : null;
+    const resumeAt = this.resumeWindow.resumes(scene.id) ? this.stoppedAt : null;
     this.track(scene).then((track) => {
       if (this.activeId === scene.id) this.start(scene, track, resumeAt);
     }, this.onError);
@@ -184,11 +179,8 @@ export class SceneAudio {
     if (!playing || !this.context) return;
     this.playing = null;
     const now = this.context.currentTime;
-    this.stopped = {
-      id: playing.id,
-      position: this.positionOf(playing, now),
-      time: performance.now(),
-    };
+    this.stoppedAt = this.positionOf(playing, now);
+    this.resumeWindow.lose(playing.id);
     playing.gain.gain.cancelScheduledValues(now);
     playing.gain.gain.setValueAtTime(playing.gain.gain.value, now);
     playing.gain.gain.linearRampToValueAtTime(0, now + SPATIAL.fade);
@@ -208,11 +200,10 @@ export class SceneAudio {
     let file = this.files.get(scene.id);
     if (!file) {
       const url = new URL(scene.audio.src, new URL(this.baseUrl, window.location.href));
-      file = fetch(url).then((response) => {
-        if (!response.ok) throw new Error(`Cannot load ${url.href}: HTTP ${response.status}`);
-        return response.arrayBuffer();
-      });
+      const task = `audio:${scene.id}`;
+      file = download(url, (loaded) => this.progress?.update(task, loaded));
       this.files.set(scene.id, file);
+      void file.finally(() => this.progress?.done(task)).catch(() => undefined);
       file.catch(() => this.files.delete(scene.id));
     }
     return file;
@@ -241,6 +232,30 @@ export class SceneAudio {
     }
     return track;
   }
+}
+
+/** Downloads a file, reporting the bytes received so far. */
+async function download(url: URL, onProgress: (loaded: number) => void): Promise<ArrayBuffer> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Cannot load ${url.href}: HTTP ${response.status}`);
+  const reader = response.body?.getReader();
+  if (!reader) return response.arrayBuffer();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.byteLength;
+    onProgress(loaded);
+  }
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
 }
 
 function rms(analyser: AnalyserNode | null): number {

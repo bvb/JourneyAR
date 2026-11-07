@@ -24,6 +24,7 @@
     "unity:export": "npm run unity:export -w tools",
     "gltf:inspect": "npm run gltf:inspect -w tools",
     "assets:publish": "npm run assets:publish -w tools --",
+    "icons:publish": "npm run icons:publish -w tools",
     "pages:normalize": "npm run pages:normalize -w tools --",
     "nft:generate": "npm run nft:generate -w tools --",
     "nft:probe": "npm run nft:probe -w tools --",

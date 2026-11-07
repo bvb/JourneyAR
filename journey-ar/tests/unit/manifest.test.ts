@@ -67,6 +67,7 @@ describe('parseScenesManifest', () => {
         nft: 'nft/a/a',
         audio: { src: 'audio/a.mp3', volume: 1, loop: true },
         anchor: { center: [0, 0], width: 200 },
+        bytes: { model: 1000, audio: 200, nft: 300 },
         pinch: { node: 'Root', min: 1, max: 2 },
       },
     ],
@@ -89,6 +90,14 @@ describe('parseScenesManifest', () => {
     const inverted = structuredClone(valid);
     inverted.scenes[0]!.pinch.max = 0.5;
     expect(() => parseScenesManifest(inverted)).toThrow('pinch.max');
+  });
+
+  it('reads an optional pinch pivot', () => {
+    const withPivot = structuredClone(valid);
+    (withPivot.scenes[0]!.pinch as { pivot?: unknown }).pivot = [0.1, 0.3, -0.2];
+    expect(parseScenesManifest(withPivot).scenes[0]!.pinch.pivot).toEqual([0.1, 0.3, -0.2]);
+    (withPivot.scenes[0]!.pinch as { pivot?: unknown }).pivot = [0.1, 0.3];
+    expect(() => parseScenesManifest(withPivot)).toThrow('pinch.pivot');
   });
 });
 

@@ -1,4 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
+import { RESUME_SECONDS } from '../../src/scenes/resume-window';
 import { collectErrors } from './helpers';
 
 // The AR scenes on the tracked page, through the embedded virtual camera (?source=canvas).
@@ -69,8 +70,29 @@ test('hides the scene in the frame the page is lost and restarts it on return', 
   // Only the camera picture is drawn: one quad.
   expect(lost.triangles).toBe(2);
 
-  // Back to the page: the animations start again from the beginning.
+  // Back to the page after more than RESUME_SECONDS: the animations start from the beginning.
+  await page.waitForTimeout(RESUME_SECONDS * 1000 + 500);
   await showPage(page, 'creature');
   await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 10_000 });
   expect(await page.evaluate(() => window.__journey!.scenes.time)).toBeLessThan(0.5);
+});
+
+test('continues the animations where they stopped when the page is back soon', async ({ page }) => {
+  test.setTimeout(60_000);
+  await start(page);
+  await showPage(page, 'creature');
+  await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 30_000 });
+  await page.waitForFunction(() => window.__journey!.scenes.time > 2);
+
+  const before = await page.evaluate(() => window.__journey!.scenes.time);
+  await page.evaluate(() => window.__vcam!.setPage(null));
+  await page.waitForFunction(() => !window.__journey!.scenes.shown);
+  await page.waitForTimeout(1500);
+  await showPage(page, 'creature');
+  await page.waitForFunction(() => window.__journey!.scenes.shown, null, { timeout: 10_000 });
+  // Continued (not from the start) and paused while hidden (not 1.5 s further on): the loss
+  // is seen a few tracker frames after the page goes.
+  const back = await page.evaluate(() => window.__journey!.scenes.time);
+  expect(back).toBeGreaterThanOrEqual(before);
+  expect(back).toBeLessThan(before + 1);
 });

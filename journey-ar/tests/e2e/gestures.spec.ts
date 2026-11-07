@@ -143,7 +143,7 @@ test('scales the scene with two fingers within its limits and keeps the size', a
   expect(await scale(page)).toBeCloseTo(3.222, 2);
 });
 
-test('keeps the size where the original snapped back, and Landscape grows 4 times', async ({
+test('keeps the size where the original snapped back, and Landscape grows 3 times', async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -159,7 +159,7 @@ test('keeps the size where the original snapped back, and Landscape grows 4 time
   await showScene(page, 'landscape');
   expect(await scale(page)).toBe(1);
   await pinch(page, cdp, 60, 400);
-  await expect.poll(() => scale(page)).toBe(4);
+  await expect.poll(() => scale(page)).toBe(3);
   // Each scene keeps its own size.
   await hidePage(page);
   await showScene(page, 'character');

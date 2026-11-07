@@ -27,6 +27,20 @@ export interface ScenePinch {
   /** Scale limits relative to the node's initial scale. */
   min: number;
   max: number;
+  /**
+   * Point to scale about when enlarging, in the scene's target-local frame (target width = 1,
+   * Y out of the page); when reducing, the point on the page below it, so the scene stays on
+   * the page. Absent: the node's own origin, as in the original.
+   */
+  pivot?: [number, number, number];
+}
+
+/** Sizes of a scene's files, bytes (for the loading progress). */
+export interface SceneBytes {
+  model: number;
+  audio: number;
+  /** The three NFT marker files together. */
+  nft: number;
 }
 
 export interface SceneEntry {
@@ -39,6 +53,7 @@ export interface SceneEntry {
   nft: string;
   audio: SceneAudio;
   anchor: SceneAnchor;
+  bytes: SceneBytes;
   pinch: ScenePinch;
 }
 
@@ -79,10 +94,15 @@ function parseScene(value: unknown, path: string): SceneEntry {
   const anchor = objectAt(scene['anchor'], `${path}.anchor`);
   const center = anchor['center'];
   if (!Array.isArray(center) || center.length !== 2) fail(`${path}.anchor.center`, '[x, y]');
+  const bytes = objectAt(scene['bytes'], `${path}.bytes`);
   const pinch = objectAt(scene['pinch'], `${path}.pinch`);
   const min = numberAt(pinch['min'], `${path}.pinch.min`, { positive: true });
   const max = numberAt(pinch['max'], `${path}.pinch.max`, { positive: true });
   if (max < min) fail(`${path}.pinch.max`, 'at least pinch.min');
+  const pivot = pinch['pivot'];
+  if (pivot !== undefined && (!Array.isArray(pivot) || pivot.length !== 3)) {
+    fail(`${path}.pinch.pivot`, '[x, y, z]');
+  }
   return {
     id: stringAt(scene['id'], `${path}.id`),
     page: stringAt(scene['page'], `${path}.page`),
@@ -100,10 +120,24 @@ function parseScene(value: unknown, path: string): SceneEntry {
       ],
       width: numberAt(anchor['width'], `${path}.anchor.width`, { positive: true }),
     },
+    bytes: {
+      model: numberAt(bytes['model'], `${path}.bytes.model`, { positive: true }),
+      audio: numberAt(bytes['audio'], `${path}.bytes.audio`, { positive: true }),
+      nft: numberAt(bytes['nft'], `${path}.bytes.nft`, { positive: true }),
+    },
     pinch: {
       node: stringAt(pinch['node'], `${path}.pinch.node`),
       min,
       max,
+      ...(pivot
+        ? {
+            pivot: [0, 1, 2].map((i) => numberAt(pivot[i], `${path}.pinch.pivot[${i}]`)) as [
+              number,
+              number,
+              number,
+            ],
+          }
+        : {}),
     },
   };
 }

@@ -1,16 +1,11 @@
-import {
-  AnimationMixer,
-  Group,
-  Matrix4,
-  type Object3D,
-  PointLight,
-  SpotLight,
-  Vector3,
-} from 'three';
+import { AnimationMixer, Group, Matrix4, PointLight, SpotLight } from 'three';
 import { ScenePlacement } from '../interaction/scene-placement';
 import { loadScene } from './load-scene';
 import { type SceneEntry, type ScenesManifest, anchorMatrix } from './manifest';
+import type { LoadProgress } from '../ui/load-progress';
+import { type PinchNode, pinchNode, scalePinchNode } from './pinch-pivot';
 import type { PreparedScene } from './prepare-scene';
+import { ResumeWindow } from './resume-window';
 
 interface MountedScene {
   entry: SceneEntry;
@@ -23,9 +18,8 @@ interface MountedScene {
   /** Target frame -> page frame without the offset. */
   anchorMatrix: Matrix4;
   mixer: AnimationMixer;
-  /** The node the original PinchScale script scaled (not animated), and its own scale. */
-  pinchNode: Object3D | null;
-  pinchBase: Vector3;
+  /** The node the original PinchScale script scaled (not animated). */
+  pinch: PinchNode | null;
   placement: ScenePlacement;
 }
 
@@ -35,7 +29,7 @@ export interface ArScenesState {
   /** The active scene is loaded and on screen. */
   shown: boolean;
   loaded: string[];
-  /** Animation time of the shown scene, seconds since it appeared. */
+  /** Animation time of the shown scene, seconds since its animations started. */
   time: number;
   /** Pinch scale of the shown scene (1: original size). */
   scale: number;
@@ -45,19 +39,21 @@ export interface ArScenesState {
 
 /**
  * The AR scenes on the tracked page (page frame: `anchor`, posed by the tracker). A scene is
- * shown while its page is tracked and hidden at once when the page is lost; every new detection
- * starts its animations and texture scrolling from the beginning. Scenes load lazily, on the
- * first detection of their page, and in the background with preloadAll().
+ * shown while its page is tracked and hidden at once when the page is lost; a new detection
+ * starts its animations and texture scrolling from the beginning, unless the page comes back
+ * soon after it was lost (ResumeWindow): then they continue where they stopped. Scenes load
+ * lazily, on the first detection of their page, and in the background with preloadAll().
  *
- * Pinching scales the scene's pinch node (scenes.json `pinch`) about its own origin, within the
- * limits, and dragging moves the scene on the page. Each scene keeps its size and place across
- * detections until resetPlacement().
+ * Pinching scales the scene's pinch node (scenes.json `pinch`) about its own origin or the
+ * scene's pivot, within the limits, and dragging moves the scene on the page. Each scene keeps
+ * its size and place across detections until resetPlacement().
  */
 export class ArScenes {
   private readonly loads = new Map<string, Promise<MountedScene>>();
   private readonly mounted = new Map<string, MountedScene>();
   private active: MountedScene | null = null;
   private activeId: string | null = null;
+  private readonly resumeWindow = new ResumeWindow();
 
   private readonly scenes: readonly SceneEntry[];
 
@@ -66,6 +62,8 @@ export class ArScenes {
     private readonly manifest: ScenesManifest,
     private readonly baseUrl: string,
     private readonly onError: (error: unknown) => void,
+    /** Reports the model downloads (task `model:<id>`). */
+    private readonly progress?: LoadProgress,
   ) {
     this.scenes = manifest.scenes;
   }
@@ -79,15 +77,17 @@ export class ArScenes {
   setTracked(id: string | null): void {
     if (id === this.activeId) return;
     if (this.active) {
+      // Hidden, its animations are no longer advanced: paused where they are.
       this.active.container.visible = false;
-      this.active.mixer.stopAllAction();
+      this.resumeWindow.lose(this.active.entry.id);
     }
     this.active = null;
     this.activeId = id;
     if (!id) return;
+    const resume = this.resumeWindow.resumes(id);
     this.load(id).then((scene) => {
       // The page may have been lost (or another found) while the scene was loading.
-      if (this.activeId === id) this.start(scene);
+      if (this.activeId === id) this.start(scene, resume);
     }, this.onError);
   }
 
@@ -150,8 +150,12 @@ export class ArScenes {
       const entry = this.scenes.find((s) => s.id === id);
       if (!entry) return Promise.reject(new Error(`Unknown scene "${id}"`));
       const url = new URL(entry.model, new URL(this.baseUrl, window.location.href)).href;
-      pending = loadScene(url).then((prepared) => this.mount(entry, prepared));
+      const task = `model:${id}`;
+      pending = loadScene(url, undefined, (loaded) => this.progress?.update(task, loaded)).then(
+        (prepared) => this.mount(entry, prepared),
+      );
       this.loads.set(id, pending);
+      void pending.finally(() => this.progress?.done(task)).catch(() => undefined);
     }
     return pending;
   }
@@ -170,8 +174,8 @@ export class ArScenes {
       }
     });
     this.anchor.add(container);
-    const pinchNode = prepared.root.getObjectByName(entry.pinch.node) ?? null;
-    if (!pinchNode) console.warn(`Scene "${entry.id}": no pinch node "${entry.pinch.node}"`);
+    const node = prepared.root.getObjectByName(entry.pinch.node);
+    if (!node) console.warn(`Scene "${entry.id}": no pinch node "${entry.pinch.node}"`);
     const { width, height } = this.manifest.page;
     const scene: MountedScene = {
       entry,
@@ -179,8 +183,7 @@ export class ArScenes {
       container,
       anchorMatrix: anchorMatrix(entry.anchor),
       mixer: new AnimationMixer(prepared.root),
-      pinchNode,
-      pinchBase: pinchNode ? pinchNode.scale.clone() : new Vector3(1, 1, 1),
+      pinch: node ? pinchNode(prepared.root, node, entry.pinch.pivot) : null,
       placement: new ScenePlacement(entry.pinch, { halfWidth: width / 2, halfHeight: height / 2 }),
     };
     this.mounted.set(entry.id, scene);
@@ -190,15 +193,18 @@ export class ArScenes {
 
   private applyPlacement(scene: MountedScene): void {
     const { scale, offset } = scene.placement;
-    scene.pinchNode?.scale.copy(scene.pinchBase).multiplyScalar(scale);
+    if (scene.pinch) scalePinchNode(scene.pinch, scale);
     scene.container.matrix.makeTranslation(offset[0], offset[1], 0).multiply(scene.anchorMatrix);
   }
 
-  private start(scene: MountedScene): void {
-    scene.mixer.stopAllAction();
-    for (const clip of scene.prepared.animations) scene.mixer.clipAction(clip).reset().play();
-    scene.mixer.setTime(0);
-    scene.prepared.restart();
+  /** Shows the scene: animations from the beginning, or continued where they stopped. */
+  private start(scene: MountedScene, resume: boolean): void {
+    if (!resume) {
+      scene.mixer.stopAllAction();
+      for (const clip of scene.prepared.animations) scene.mixer.clipAction(clip).reset().play();
+      scene.mixer.setTime(0);
+      scene.prepared.restart();
+    }
     scene.container.visible = true;
     this.active = scene;
   }

@@ -21,6 +21,11 @@
         ],
         "width": 304.6
       },
+      "bytes": {
+        "model": 3275604,
+        "audio": 667802,
+        "nft": 852594
+      },
       "pinch": {
         "node": "GameObject",
         "min": 1,
@@ -43,6 +48,11 @@
           -2.1
         ],
         "width": 298.7
+      },
+      "bytes": {
+        "model": 2315512,
+        "audio": 1388377,
+        "nft": 808529
       },
       "pinch": {
         "node": "GuardianBaked_FBX",
@@ -67,10 +77,20 @@
         ],
         "width": 253.1
       },
+      "bytes": {
+        "model": 3606824,
+        "audio": 1570190,
+        "nft": 646589
+      },
       "pinch": {
         "node": "GameObject",
         "min": 0.714,
-        "max": 4
+        "max": 3,
+        "pivot": [
+          -0.0074,
+          0.3316,
+          0.0366
+        ]
       }
     },
     {
@@ -89,6 +109,11 @@
           1
         ],
         "width": 308.8
+      },
+      "bytes": {
+        "model": 11701328,
+        "audio": 568346,
+        "nft": 790197
       },
       "pinch": {
         "node": "Tower_FBX",
@@ -112,6 +137,11 @@
           2.9
         ],
         "width": 303.4
+      },
+      "bytes": {
+        "model": 853152,
+        "audio": 522266,
+        "nft": 841511
       },
       "pinch": {
         "node": "GameObject",

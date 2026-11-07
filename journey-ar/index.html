@@ -7,7 +7,14 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#000000" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- App icons for the browsers (npm run icons:publish, from assets-favicon/). -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#000000" />
+    <meta name="msapplication-TileColor" content="#da532c" />
     <title>Journey AR</title>
   </head>
   <body>
@@ -15,7 +22,14 @@
     <canvas id="scene"></canvas>
     <div id="controls">
       <p id="status" role="status"></p>
-      <button id="start" type="button">Старт</button>
+      <button id="start" type="button" aria-label="Старт">
+        <svg class="ring" viewBox="0 0 76 76" aria-hidden="true">
+          <circle class="track" cx="38" cy="38" r="35.5" />
+          <circle class="arc" cx="38" cy="38" r="35.5" pathLength="100" />
+          <circle class="spark" cx="38" cy="38" r="35.5" pathLength="100" />
+        </svg>
+        <img class="logo" src="/logo.svg" alt="" />
+      </button>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -43,9 +43,6 @@ export function distanceGain(distance: number, settings = SPATIAL): number {
   );
 }
 
-/** A page found again this soon after it was lost continues its track where it stopped, s. */
-export const RESUME_SECONDS = 3;
-
 /**
  * Position in a track, seconds, `elapsed` seconds after it started playing at `from`. A looping
  * track wraps from `loop.end` to `loop.start` (as AudioBufferSourceNode does); one that does not

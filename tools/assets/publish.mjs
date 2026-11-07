@@ -11,7 +11,7 @@
 // tuned in the app's debug mode; pass --reset-anchors to recompute them.
 //
 // Usage: node assets/publish.mjs [--reset-anchors]
-import { NodeIO } from '@gltf-transform/core';
+import { NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import {
   copyFileSync,
@@ -20,6 +20,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -87,6 +88,29 @@ function componentsOf(document, type) {
     );
 }
 
+/**
+ * Centre of the common bounds of the named nodes (with their children), in the scene frame
+ * (the target frame: target width = 1).
+ */
+function centerOf(document, names, id) {
+  const nodes = document
+    .getRoot()
+    .listNodes()
+    .filter((node) => names.includes(node.getName()));
+  const missing = names.filter((name) => !nodes.some((node) => node.getName() === name));
+  if (missing.length > 0) throw new Error(`${id}: no node ${missing.join(', ')}`);
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const node of nodes) {
+    const bounds = getBounds(node);
+    for (let i = 0; i < 3; i += 1) {
+      min[i] = Math.min(min[i], bounds.min[i]);
+      max[i] = Math.max(max[i], bounds.max[i]);
+    }
+  }
+  return min.map((v, i) => round((v + max[i]) / 2, 4));
+}
+
 function single(list, what, id) {
   if (list.length !== 1) throw new Error(`${id}: expected one ${what}, found ${list.length}`);
   return list[0];
@@ -148,14 +172,17 @@ for (const scene of SCENES) {
 
   // PinchScale clamps the node's uniform scale to [ScaleMin, ScaleMax]; store the limits relative
   // to the node's initial scale. Its SnapBack is not used: the app keeps the size (decision 19).
-  // A scene may raise the upper limit (pinchMax in tools/scenes.mjs).
+  // A scene may raise the upper limit (pinchMax in tools/scenes.mjs) and scale about the centre
+  // of some of its models (pinchPivot: the centre in the scene frame, target width = 1).
   const pinch = single(componentsOf(document, 'PinchScale'), 'PinchScale', scene.id);
   const initialScale = pinch.node.getScale()[0];
 
   // NFT marker files from nft:generate; the app loads them by this URL prefix.
+  let nftBytes = 0;
   for (const ext of ['iset', 'fset', 'fset3']) {
     const file = path.join(AR_ASSETS, 'nft', scene.id, `${scene.id}.${ext}`);
     if (!existsSync(file)) throw new Error(`Missing ${file}; run npm run nft:generate`);
+    nftBytes += statSync(file).size;
   }
 
   const target = vuforiaTargets.get(scene.target);
@@ -170,10 +197,17 @@ for (const scene of SCENES) {
     nft: `nft/${scene.id}/${scene.id}`,
     audio: { src: `audio/${scene.id}.mp3`, volume: audio.volume, loop: audio.loop },
     anchor: kept ?? locateAnchor(scene, target),
+    // File sizes, for the loading progress shown after Start.
+    bytes: {
+      model: statSync(path.join(AR_ASSETS, 'models', `${scene.id}.glb`)).size,
+      audio: statSync(path.join(AR_ASSETS, 'audio', `${scene.id}.mp3`)).size,
+      nft: nftBytes,
+    },
     pinch: {
       node: pinch.node.getName(),
       min: round(pinch.component.ScaleMin / initialScale, 3),
       max: scene.pinchMax ?? round(pinch.component.ScaleMax / initialScale, 3),
+      ...(scene.pinchPivot ? { pivot: centerOf(document, scene.pinchPivot, scene.id) } : {}),
     },
   });
 }

@@ -19,6 +19,8 @@ export interface JourneyTestHooks {
   scenes: ArScenesState;
   /** Sound state (a getter: reading it measures the current levels). */
   readonly audio?: SceneAudioState;
+  /** Downloads after Start (a getter): loaded part by bytes, and whether all are done. */
+  readonly loading?: { fraction: number; complete: boolean };
 }
 
 /** Tracker output, for comparing with the virtual camera's ground truth. */

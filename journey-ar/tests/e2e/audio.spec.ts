@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
-import { RESUME_SECONDS, SPATIAL } from '../../src/audio/loop-bounds';
+import { SPATIAL } from '../../src/audio/loop-bounds';
+import { RESUME_SECONDS } from '../../src/scenes/resume-window';
 import { collectErrors } from './helpers';
 
 /** Gain of the inverse distance model (as the app's PannerNode is set up). */

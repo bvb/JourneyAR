@@ -24,6 +24,8 @@ import { type FrameSource, createFrameSource } from './sources/frame-source';
 import './style.css';
 import { PoseSmoother } from './tracking/pose-smoother';
 import { TrackingLoop } from './tracking/tracking-loop';
+import { LoadProgress } from './ui/load-progress';
+import { StartButton } from './ui/start-button';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!canvas) throw new Error('Canvas #scene not found');
@@ -86,18 +88,42 @@ const video = document.querySelector<HTMLVideoElement>('#video')!;
 const background = new VideoBackground(video);
 scene.add(background.mesh);
 
+// What loads after Start, by bytes (scenes.json): the NFT markers (the tracker), the scene
+// models and the soundtracks. The Start button shows it on its rim.
+const progress = new LoadProgress();
+progress.expect(
+  'nft',
+  manifest.scenes.reduce((sum, s) => sum + s.bytes.nft, 0),
+);
+for (const { id, bytes } of manifest.scenes) {
+  progress.expect(`model:${id}`, bytes.model);
+  progress.expect(`audio:${id}`, bytes.audio);
+}
+
+// The only text on screen: what went wrong, if anything.
 const status = document.querySelector<HTMLElement>('#status')!;
-const arScenes = new ArScenes(anchor, manifest, import.meta.env.BASE_URL, (error) => {
-  console.error(error);
-  status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
-});
+const arScenes = new ArScenes(
+  anchor,
+  manifest,
+  import.meta.env.BASE_URL,
+  (error) => {
+    console.error(error);
+    status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
+  },
+  progress,
+);
 let preloading = false;
 
 // Scene soundtracks, spatial: unlocked by the Start button (a user gesture).
-const audio = new SceneAudio(manifest.scenes, import.meta.env.BASE_URL, (error) => {
-  console.error(error);
-  status.textContent = `Звук: ${error instanceof Error ? error.message : String(error)}`;
-});
+const audio = new SceneAudio(
+  manifest.scenes,
+  import.meta.env.BASE_URL,
+  (error) => {
+    console.error(error);
+    status.textContent = `Звук: ${error instanceof Error ? error.message : String(error)}`;
+  },
+  progress,
+);
 let trackedScene: string | null = null;
 const soundPoint = new Vector3();
 document.addEventListener('visibilitychange', () => {
@@ -156,22 +182,39 @@ const hooks = installTestHooks({
   },
   scenes: arScenes.state,
 });
-if (hooks) Object.defineProperty(hooks, 'audio', { get: () => audio.state });
+if (hooks) {
+  Object.defineProperty(hooks, 'audio', { get: () => audio.state });
+  Object.defineProperty(hooks, 'loading', {
+    get: () => ({ fraction: progress.fraction, complete: progress.complete }),
+  });
+}
 
 // Frame source: started and stopped with the button (the camera needs a user gesture, and so
 // will the audio on iOS).
-const startButton = document.querySelector<HTMLButtonElement>('#start')!;
+const startButton = new StartButton(document.querySelector<HTMLButtonElement>('#start')!);
 let frameSource: FrameSource | null = null;
 let tracking: TrackingLoop | null = null;
 const smoother = new PoseSmoother(trackingOptions.smoothing);
 let running = false;
+let starting = false;
+
+function renderButton(): void {
+  startButton.render({
+    running,
+    starting,
+    loading: starting || !progress.complete,
+    progress: progress.fraction,
+  });
+}
+progress.subscribe(renderButton);
+renderButton();
 
 function setState(state: NonNullable<typeof hooks>['sourceState'], message = ''): void {
   if (hooks) hooks.sourceState = state;
   running = state === 'running' || state === 'starting';
-  startButton.textContent = running ? 'Стоп' : 'Старт';
-  startButton.disabled = state === 'starting';
+  starting = state === 'starting';
   status.textContent = message;
+  renderButton();
 }
 
 function startTracking(sourceInUse: FrameSource): void {
@@ -183,6 +226,8 @@ function startTracking(sourceInUse: FrameSource): void {
     fieldOfView: trackingOptions.fieldOfView,
     sourceFocal: sourceInUse.focal,
     onResult(result) {
+      // The first result: the tracker has its NFT markers.
+      progress.done('nft');
       // A page found (again) starts the smoothing over; the anchor follows in the render loop.
       if (result.transitions.some((t) => t.type === 'found')) smoother.reset();
       if (result.pose) smoother.addPose(result.pose, performance.now());
@@ -226,7 +271,7 @@ function stopTracking(): void {
 }
 
 async function startSource(): Promise<void> {
-  setState('starting', source.kind === 'webrtc' ? 'Ожидание виртуальной камеры…' : '');
+  setState('starting');
   try {
     frameSource ??= await createFrameSource(source);
     await frameSource.start(video);
@@ -241,7 +286,7 @@ async function startSource(): Promise<void> {
   }
 }
 
-startButton.addEventListener('click', () => {
+startButton.element.addEventListener('click', () => {
   if (running) {
     stopTracking();
     frameSource?.stop();
