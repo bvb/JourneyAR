@@ -18,8 +18,10 @@ export const ANDROID_VIEWER =
   process.env.ANDROID_VIEWER ?? path.join(ROOT, 'android-ar-viewer.1.0');
 export const BOOK_PAGES = path.join(ROOT, 'book-ar-pages');
 export const AR_ASSETS = path.join(ROOT, 'journey-ar', 'assets');
-// The app icons as given (favicons for the browsers); published by tools/assets/icons.mjs.
+// The app icons as given (favicons for the browsers) and the picture shown before the camera
+// starts (book/, outside git); published by tools/assets/ui-assets.mjs.
 export const FAVICON_SOURCE = path.join(ROOT, 'assets-favicon');
+export const BACKGROUND_SOURCE = path.join(ROOT, 'book', 'journey-art1600.jpg');
 export const PIPELINE_OUT = path.join(ROOT, 'tools', '.out');
 
 // The original Vuforia dataset of the Android app: target sizes and target textures.

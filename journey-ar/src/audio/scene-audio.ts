@@ -1,6 +1,6 @@
 import { ResumeWindow } from '../scenes/resume-window';
 import type { SceneEntry } from '../scenes/manifest';
-import type { LoadProgress } from '../ui/load-progress';
+import type { PendingLoads } from '../ui/pending-loads';
 import { SPATIAL, loopBounds, trackPosition } from './loop-bounds';
 
 interface Track {
@@ -62,8 +62,8 @@ export class SceneAudio {
     private readonly scenes: readonly SceneEntry[],
     private readonly baseUrl: string,
     private readonly onError: (error: unknown) => void,
-    /** Reports the soundtrack downloads (task `audio:<id>`). */
-    private readonly progress?: LoadProgress,
+    /** Told when a soundtrack download finishes (`audio:<id>`). */
+    private readonly loads?: PendingLoads,
   ) {}
 
   /**
@@ -201,9 +201,12 @@ export class SceneAudio {
     if (!file) {
       const url = new URL(scene.audio.src, new URL(this.baseUrl, window.location.href));
       const task = `audio:${scene.id}`;
-      file = download(url, (loaded) => this.progress?.update(task, loaded));
+      file = fetch(url).then((response) => {
+        if (!response.ok) throw new Error(`Cannot load ${url.href}: HTTP ${response.status}`);
+        return response.arrayBuffer();
+      });
       this.files.set(scene.id, file);
-      void file.finally(() => this.progress?.done(task)).catch(() => undefined);
+      void file.finally(() => this.loads?.done(task)).catch(() => undefined);
       file.catch(() => this.files.delete(scene.id));
     }
     return file;
@@ -232,30 +235,6 @@ export class SceneAudio {
     }
     return track;
   }
-}
-
-/** Downloads a file, reporting the bytes received so far. */
-async function download(url: URL, onProgress: (loaded: number) => void): Promise<ArrayBuffer> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Cannot load ${url.href}: HTTP ${response.status}`);
-  const reader = response.body?.getReader();
-  if (!reader) return response.arrayBuffer();
-  const chunks: Uint8Array[] = [];
-  let loaded = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    loaded += value.byteLength;
-    onProgress(loaded);
-  }
-  const bytes = new Uint8Array(loaded);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes.buffer;
 }
 
 function rms(analyser: AnalyserNode | null): number {

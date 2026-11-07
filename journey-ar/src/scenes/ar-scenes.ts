@@ -2,7 +2,7 @@ import { AnimationMixer, Group, Matrix4, PointLight, SpotLight } from 'three';
 import { ScenePlacement } from '../interaction/scene-placement';
 import { loadScene } from './load-scene';
 import { type SceneEntry, type ScenesManifest, anchorMatrix } from './manifest';
-import type { LoadProgress } from '../ui/load-progress';
+import type { PendingLoads } from '../ui/pending-loads';
 import { type PinchNode, pinchNode, scalePinchNode } from './pinch-pivot';
 import type { PreparedScene } from './prepare-scene';
 import { ResumeWindow } from './resume-window';
@@ -62,8 +62,8 @@ export class ArScenes {
     private readonly manifest: ScenesManifest,
     private readonly baseUrl: string,
     private readonly onError: (error: unknown) => void,
-    /** Reports the model downloads (task `model:<id>`). */
-    private readonly progress?: LoadProgress,
+    /** Told when a scene has loaded (`model:<id>`). */
+    private readonly pendingLoads?: PendingLoads,
   ) {
     this.scenes = manifest.scenes;
   }
@@ -151,11 +151,9 @@ export class ArScenes {
       if (!entry) return Promise.reject(new Error(`Unknown scene "${id}"`));
       const url = new URL(entry.model, new URL(this.baseUrl, window.location.href)).href;
       const task = `model:${id}`;
-      pending = loadScene(url, undefined, (loaded) => this.progress?.update(task, loaded)).then(
-        (prepared) => this.mount(entry, prepared),
-      );
+      pending = loadScene(url).then((prepared) => this.mount(entry, prepared));
       this.loads.set(id, pending);
-      void pending.finally(() => this.progress?.done(task)).catch(() => undefined);
+      void pending.finally(() => this.pendingLoads?.done(task)).catch(() => undefined);
     }
     return pending;
   }

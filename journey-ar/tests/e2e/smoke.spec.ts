@@ -11,7 +11,8 @@ test('renders the three.js scene without errors', async ({ page }) => {
   });
 
   await page.goto('/');
-  await expect(page.locator('canvas#scene')).toBeVisible();
+  // Rendering runs from the start; the canvas shows once the camera does.
+  await expect(page.locator('canvas#scene')).toBeAttached();
   await page.waitForFunction(() => (window.__journey?.framesRendered ?? 0) > 10);
 
   const hooks = await page.evaluate(() => window.__journey);

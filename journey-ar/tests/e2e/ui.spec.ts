@@ -1,25 +1,38 @@
 import { type Page, expect, test } from '@playwright/test';
 import { collectErrors } from './helpers';
 
-// The interface: the app icons and the Start/Stop button with the loading progress on its rim.
+// The interface: the app icons, the Journey picture before the camera runs, and the Start/Stop
+// button (a light round its rim while loading, a red rim after an error).
+
+const WHITE = 'rgb(255, 255, 255)';
+const RED = 'rgb(255, 59, 48)';
 
 const button = (page: Page) => page.locator('#start');
 
-/** The button as drawn: state classes, the picture's filter, the rim width and its progress. */
-function buttonLook(page: Page) {
+/** The button and the screen as drawn. */
+function look(page: Page) {
   return page.evaluate(() => {
     const element = document.querySelector<HTMLButtonElement>('#start')!;
-    const arc = getComputedStyle(element.querySelector('.arc')!);
+    const rim = getComputedStyle(element.querySelector('.rim')!);
+    const spark = getComputedStyle(element.querySelector('.spark')!);
     return {
       label: element.getAttribute('aria-label'),
       on: element.classList.contains('on'),
       loading: element.classList.contains('loading'),
+      error: element.classList.contains('error'),
       logoFilter: getComputedStyle(element.querySelector('.logo')!).filter,
-      rim: parseFloat(arc.strokeWidth),
-      dash: arc.strokeDasharray,
-      offset: parseFloat(arc.strokeDashoffset),
+      rim: parseFloat(rim.strokeWidth),
+      rimColor: rim.stroke,
+      spark: Number(spark.opacity),
+      sparkAnimation: spark.animationName,
+      canvas: getComputedStyle(document.querySelector('#scene')!).visibility,
+      background: getComputedStyle(document.body).backgroundImage,
     };
   });
+}
+
+async function start(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Старт' }).click();
 }
 
 test('serves the app icons for the browsers', async ({ page, request }) => {
@@ -39,7 +52,7 @@ test('serves the app icons for the browsers', async ({ page, request }) => {
       '/safari-pinned-tab.svg',
     ]),
   );
-  for (const href of [...links, '/browserconfig.xml', '/logo.svg', '/mstile-150x150.png']) {
+  for (const href of [...links, '/browserconfig.xml', '/logo.svg', '/background.jpg']) {
     expect((await request.get(href)).status(), href).toBe(200);
   }
   const manifest = (await (await request.get('/site.webmanifest')).json()) as {
@@ -52,67 +65,65 @@ test('serves the app icons for the browsers', async ({ page, request }) => {
   }
 });
 
-test('shows the start state, the loading progress and the stop state on one button', async ({
-  page,
-}) => {
+test('shows the Journey picture until the camera runs, and the button states', async ({ page }) => {
   test.setTimeout(90_000);
   const errors = collectErrors(page);
   await page.goto('/?source=canvas');
   await page.waitForFunction(() => window.__journey?.ready === true);
 
-  // Idle: a thin whole rim, the picture as it is, at the bottom in the middle. (The dev server
-  // adds the styles by script, so they may still be easing in.)
+  // Idle: a thin white rim, the picture as it is, at the bottom in the middle; behind it the
+  // Journey picture, as high as the window. (The dev server adds the styles by script, so they
+  // may still be easing in.)
   await expect
-    .poll(() => buttonLook(page))
+    .poll(() => look(page))
     .toMatchObject({
       label: 'Старт',
       on: false,
       loading: false,
+      error: false,
       logoFilter: 'none',
       rim: 2,
-      dash: 'none',
+      rimColor: WHITE,
+      spark: 0,
+      canvas: 'hidden',
     });
+  expect((await look(page)).background).toContain('/background.jpg');
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundSize)).toBe(
+    'auto 100%',
+  );
   await expect(button(page).locator('img.logo')).toBeVisible();
   const box = (await button(page).boundingBox())!;
   const viewport = page.viewportSize()!;
   expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(1);
   expect(box.y + box.height).toBeGreaterThan(viewport.height - 140);
+  // No text on screen besides the button.
+  expect(await page.locator('#status').count()).toBe(0);
 
-  // Started: the picture inverts, the rim is thicker and shows the loading progress, which only
-  // grows until everything is loaded.
-  await page.getByRole('button', { name: 'Старт' }).click();
-  // The picture inverts with a short transition.
+  // Started: the picture inverts and the rim is thicker; the camera picture replaces the
+  // Journey picture; once everything is loaded, the light stops and the rim is whole.
+  await start(page);
   await expect
-    .poll(() => buttonLook(page))
-    .toMatchObject({ on: true, label: 'Стоп', logoFilter: 'invert(1)' });
-  const fractions: number[] = [];
+    .poll(() => look(page))
+    .toMatchObject({ on: true, label: 'Стоп', logoFilter: 'invert(1)', rim: 5 });
+  await expect.poll(async () => (await look(page)).canvas).toBe('visible');
   await expect
-    .poll(
-      async () => {
-        const loading = await page.evaluate(() => window.__journey!.loading!);
-        fractions.push(loading.fraction);
-        return loading.complete;
-      },
-      { timeout: 60_000, intervals: [100] },
-    )
+    .poll(() => page.evaluate(() => window.__journey!.loading!.complete), { timeout: 60_000 })
     .toBe(true);
-  for (let i = 1; i < fractions.length; i += 1) {
-    expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]!);
-  }
-  expect(fractions.at(-1)).toBe(1);
   await expect
-    .poll(() => buttonLook(page))
-    .toMatchObject({ on: true, loading: false, rim: 5, dash: 'none' });
+    .poll(() => look(page))
+    .toMatchObject({ loading: false, rim: 5, rimColor: WHITE, spark: 0, error: false });
 
-  // Stopped: back to the start state.
+  // Stopped: back to the start state and the Journey picture.
   await page.getByRole('button', { name: 'Стоп' }).click();
-  await expect.poll(() => buttonLook(page)).toMatchObject({ label: 'Старт', on: false, rim: 2 });
+  await expect
+    .poll(() => look(page))
+    .toMatchObject({ label: 'Старт', on: false, rim: 2, canvas: 'hidden' });
   expect(errors).toEqual([]);
 });
 
-test('draws the loaded part on the rim while loading', async ({ page, context }) => {
+test('runs a light round the rim while loading', async ({ page, context }) => {
   test.setTimeout(90_000);
-  // Slow downloads, so the loading state lasts.
+  // Slow downloads, so the loading lasts.
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
@@ -124,17 +135,56 @@ test('draws the loaded part on the rim while loading', async ({ page, context })
     downloadThroughput: 3e6,
     uploadThroughput: 1e6,
   });
-  await page.getByRole('button', { name: 'Старт' }).click();
-  await expect.poll(async () => (await buttonLook(page)).loading).toBe(true);
+  await start(page);
   await expect
-    .poll(() => page.evaluate(() => window.__journey!.loading!.fraction), { timeout: 30_000 })
-    .toBeGreaterThan(0.05);
-  const fraction = await page.evaluate(() => window.__journey!.loading!.fraction);
-  const look = await buttonLook(page);
-  expect(look).toMatchObject({ loading: true, rim: 5, dash: '100px' });
-  // The arc (path length 100) shows the loaded part; it eases to the value in 0.3 s.
+    .poll(() => look(page))
+    .toMatchObject({ loading: true, rim: 5, spark: 1, sparkAnimation: 'spark-travel' });
+  // The rim under the light is faint.
+  expect((await look(page)).rimColor).toBe('rgba(255, 255, 255, 0.3)');
+  expect(await page.evaluate(() => window.__journey!.loading!.pending)).toBeGreaterThan(0);
+});
+
+test('turns the rim red on an error and logs it, until the next Start', async ({ page }) => {
+  test.setTimeout(90_000);
+  const logged: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') logged.push(message.text());
+  });
+  // A scene that cannot load.
+  await page.route('**/models/sequence.glb', (route) => route.fulfill({ status: 404 }));
+  await page.goto('/?source=canvas');
+  await page.waitForFunction(() => window.__journey?.ready === true);
+  await start(page);
   await expect
-    .poll(async () => (await buttonLook(page)).offset)
-    .toBeLessThanOrEqual(100 * (1 - fraction) + 0.5);
-  expect(look.offset).toBeGreaterThan(5);
+    .poll(() => look(page), { timeout: 60_000 })
+    .toMatchObject({ error: true, rimColor: RED });
+  expect(logged.some((text) => text.startsWith('Scene:'))).toBe(true);
+  expect(await page.locator('#status').count()).toBe(0);
+
+  // A new Start: the earlier error is no longer shown.
+  await page.getByRole('button', { name: 'Стоп' }).click();
+  await start(page);
+  await expect.poll(() => look(page)).toMatchObject({ error: false, rimColor: WHITE, on: true });
+});
+
+test('turns the rim red when the camera cannot start', async ({ page }) => {
+  const logged: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') logged.push(message.text());
+  });
+  await page.goto('/?source=video&src=/__recordings/missing.webm');
+  await page.waitForFunction(() => window.__journey?.ready === true);
+  await start(page);
+  await expect
+    .poll(() => look(page))
+    .toMatchObject({
+      label: 'Старт',
+      on: false,
+      error: true,
+      rim: 2,
+      rimColor: RED,
+      canvas: 'hidden',
+    });
+  expect(await page.evaluate(() => window.__journey!.sourceState)).toBe('error');
+  expect(logged.some((text) => text.startsWith('Camera:'))).toBe(true);
 });

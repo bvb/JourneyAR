@@ -14,14 +14,26 @@ body {
   user-select: none;
 }
 
+/* Until the camera runs: the Journey picture, centred, as high as the window. */
+body {
+  background: #000 url('/background.jpg') center / auto 100% no-repeat;
+}
+
+/* The camera picture and the AR content (drawn together in WebGL), once the camera runs. */
 #scene {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  visibility: hidden;
 }
 
+body.camera-on #scene {
+  visibility: visible;
+}
+
+/* Only decodes the camera; the canvas shows it. */
 #video {
   position: fixed;
   inset: 0;
@@ -41,27 +53,17 @@ body {
   right: 0;
   bottom: calc(24px + env(safe-area-inset-bottom));
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  justify-content: center;
   pointer-events: none;
-}
-
-#status {
-  margin: 0;
-  padding: 0 16px;
-  text-align: center;
-  text-shadow: 0 1px 3px #000;
-}
-
-#status:empty {
-  display: none;
 }
 
 /* Start/Stop: a black disc with a white rim and the traveller. Started, the picture inverts
    (white disc, black traveller, a black gap before the rim) and the rim grows thicker; while
-   loading, the rim is the progress (StartButton). */
+   loading, a light runs round a faint rim; an error turns the rim red (StartButton). */
 #start {
+  --rim: #fff;
+  --rim-faint: rgb(255 255 255 / 30%);
+
   pointer-events: auto;
   position: relative;
   display: grid;
@@ -74,6 +76,11 @@ body {
   background: #000;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+#start.error {
+  --rim: #ff3b30;
+  --rim-faint: rgb(255 59 48 / 40%);
 }
 
 #start:disabled {
@@ -117,17 +124,16 @@ body {
   width: 100%;
   height: 100%;
   overflow: visible;
-  /* Arcs start at the top and run clockwise. */
+  /* The light starts at the top and runs clockwise. */
   transform: rotate(-90deg);
 }
 
 #start .ring circle {
   fill: none;
-  stroke: #fff;
   stroke-width: 2;
   transition:
     stroke-width 0.25s ease,
-    stroke-dashoffset 0.3s ease,
+    stroke 0.3s ease,
     opacity 0.3s ease;
 }
 
@@ -135,31 +141,22 @@ body {
   stroke-width: 5;
 }
 
-#start .ring .track {
-  stroke: rgb(255 255 255 / 30%);
-  opacity: 0;
+#start .rim {
+  stroke: var(--rim);
 }
 
-/* A whole ring without a dash: a dash as long as the circle leaves a seam at its start. */
-#start .ring .arc {
-  stroke-dasharray: none;
-}
-
-#start.loading .ring .arc {
-  stroke-dasharray: 100;
+#start.loading .rim {
+  stroke: var(--rim-faint);
 }
 
 #start .spark {
-  stroke-dasharray: 8 92;
+  stroke: var(--rim);
+  stroke-dasharray: 10 90;
   opacity: 0;
 }
 
-#start.loading .track {
-  opacity: 1;
-}
-
 #start.loading .spark {
-  opacity: 0.9;
+  opacity: 1;
   animation: spark-travel 1.2s linear infinite;
 }
 
@@ -176,6 +173,5 @@ body {
 @media (prefers-reduced-motion: reduce) {
   #start.loading .spark {
     animation: none;
-    opacity: 0;
   }
 }

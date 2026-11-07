@@ -20,7 +20,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -178,11 +177,9 @@ for (const scene of SCENES) {
   const initialScale = pinch.node.getScale()[0];
 
   // NFT marker files from nft:generate; the app loads them by this URL prefix.
-  let nftBytes = 0;
   for (const ext of ['iset', 'fset', 'fset3']) {
     const file = path.join(AR_ASSETS, 'nft', scene.id, `${scene.id}.${ext}`);
     if (!existsSync(file)) throw new Error(`Missing ${file}; run npm run nft:generate`);
-    nftBytes += statSync(file).size;
   }
 
   const target = vuforiaTargets.get(scene.target);
@@ -197,12 +194,6 @@ for (const scene of SCENES) {
     nft: `nft/${scene.id}/${scene.id}`,
     audio: { src: `audio/${scene.id}.mp3`, volume: audio.volume, loop: audio.loop },
     anchor: kept ?? locateAnchor(scene, target),
-    // File sizes, for the loading progress shown after Start.
-    bytes: {
-      model: statSync(path.join(AR_ASSETS, 'models', `${scene.id}.glb`)).size,
-      audio: statSync(path.join(AR_ASSETS, 'audio', `${scene.id}.mp3`)).size,
-      nft: nftBytes,
-    },
     pinch: {
       node: pinch.node.getName(),
       min: round(pinch.component.ScaleMin / initialScale, 3),

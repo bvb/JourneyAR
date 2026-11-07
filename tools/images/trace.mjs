@@ -1,5 +1,5 @@
 // Vectorizes a small raster shape: contours of a value map (0..1) at a threshold, smoothed and
-// simplified, as SVG path data. Used for the app logo (tools/assets/icons.mjs).
+// simplified, as SVG path data. Used for the app logo (tools/assets/ui-assets.mjs).
 
 /**
  * Upsamples a value map `factor` times with bicubic (Catmull-Rom) interpolation, then blurs it

@@ -1,16 +1,18 @@
-// Publishes the app icons into journey-ar/assets:
+// Publishes the interface assets into journey-ar/assets:
 // - the favicons for the browsers, as given in assets-favicon/ (the web manifest gets the app's
 //   name and colours);
+// - background.jpg: the picture behind the Start button until the camera starts
+//   (book/journey-art1600.jpg, outside git; as is);
 // - logo.svg: the traveller of the icon traced into a vector shape, white on transparent, for
 //   the Start/Stop button. The icons only exist as small images (the largest is
 //   mstile-150x150.png; safari-pinned-tab.svg is the outline of the whole square), so the shape
 //   is traced from that image: smoothed, contoured and simplified (tools/images/trace.mjs).
 //
-// Usage: node assets/icons.mjs
+// Usage: node assets/ui-assets.mjs
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { AR_ASSETS, FAVICON_SOURCE, FFMPEG } from '../config.mjs';
+import { AR_ASSETS, BACKGROUND_SOURCE, FAVICON_SOURCE, FFMPEG } from '../config.mjs';
 import { area, contours, pathData, simplify, smoothUpsample } from '../images/trace.mjs';
 import { imageSize } from './images.mjs';
 
@@ -49,6 +51,8 @@ manifest.background_color = '#000000';
 // Relative to the manifest, so the app also works below a sub-path.
 manifest.icons = manifest.icons.map((icon) => ({ ...icon, src: icon.src.replace(/^\//, '') }));
 publish('site.webmanifest', `${JSON.stringify(manifest, null, 2)}\n`);
+
+publish('background.jpg', readFileSync(BACKGROUND_SOURCE));
 
 // The traveller: white (and opaque) pixels of the icon, without its dark square.
 const { width, height } = imageSize(LOGO_SOURCE);

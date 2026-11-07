@@ -24,7 +24,7 @@ import { type FrameSource, createFrameSource } from './sources/frame-source';
 import './style.css';
 import { PoseSmoother } from './tracking/pose-smoother';
 import { TrackingLoop } from './tracking/tracking-loop';
-import { LoadProgress } from './ui/load-progress';
+import { PendingLoads } from './ui/pending-loads';
 import { StartButton } from './ui/start-button';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -88,29 +88,30 @@ const video = document.querySelector<HTMLVideoElement>('#video')!;
 const background = new VideoBackground(video);
 scene.add(background.mesh);
 
-// What loads after Start, by bytes (scenes.json): the NFT markers (the tracker), the scene
-// models and the soundtracks. The Start button shows it on its rim.
-const progress = new LoadProgress();
-progress.expect(
-  'nft',
-  manifest.scenes.reduce((sum, s) => sum + s.bytes.nft, 0),
-);
-for (const { id, bytes } of manifest.scenes) {
-  progress.expect(`model:${id}`, bytes.model);
-  progress.expect(`audio:${id}`, bytes.audio);
+// What loads after Start: the NFT markers (the tracker), the scene models and the
+// soundtracks. A light runs round the Start button until they are all in.
+const loads = new PendingLoads();
+loads.add('nft');
+for (const { id } of manifest.scenes) {
+  loads.add(`model:${id}`);
+  loads.add(`audio:${id}`);
 }
 
-// The only text on screen: what went wrong, if anything.
-const status = document.querySelector<HTMLElement>('#status')!;
+// Errors go to the console; on screen, the Start button's rim turns red until the next Start.
+let failed = false;
+function reportError(what: string, error: unknown): void {
+  console.error(`${what}:`, error);
+  if (failed) return;
+  failed = true;
+  renderButton();
+}
+
 const arScenes = new ArScenes(
   anchor,
   manifest,
   import.meta.env.BASE_URL,
-  (error) => {
-    console.error(error);
-    status.textContent = `Сцена: ${error instanceof Error ? error.message : String(error)}`;
-  },
-  progress,
+  (error) => reportError('Scene', error),
+  loads,
 );
 let preloading = false;
 
@@ -118,11 +119,8 @@ let preloading = false;
 const audio = new SceneAudio(
   manifest.scenes,
   import.meta.env.BASE_URL,
-  (error) => {
-    console.error(error);
-    status.textContent = `Звук: ${error instanceof Error ? error.message : String(error)}`;
-  },
-  progress,
+  (error) => reportError('Sound', error),
+  loads,
 );
 let trackedScene: string | null = null;
 const soundPoint = new Vector3();
@@ -185,7 +183,7 @@ const hooks = installTestHooks({
 if (hooks) {
   Object.defineProperty(hooks, 'audio', { get: () => audio.state });
   Object.defineProperty(hooks, 'loading', {
-    get: () => ({ fraction: progress.fraction, complete: progress.complete }),
+    get: () => ({ complete: loads.complete, pending: loads.count }),
   });
 }
 
@@ -199,21 +197,15 @@ let running = false;
 let starting = false;
 
 function renderButton(): void {
-  startButton.render({
-    running,
-    starting,
-    loading: starting || !progress.complete,
-    progress: progress.fraction,
-  });
+  startButton.render({ running, starting, loading: starting || !loads.complete, error: failed });
 }
-progress.subscribe(renderButton);
+loads.subscribe(renderButton);
 renderButton();
 
-function setState(state: NonNullable<typeof hooks>['sourceState'], message = ''): void {
+function setState(state: NonNullable<typeof hooks>['sourceState']): void {
   if (hooks) hooks.sourceState = state;
   running = state === 'running' || state === 'starting';
   starting = state === 'starting';
-  status.textContent = message;
   renderButton();
 }
 
@@ -227,7 +219,7 @@ function startTracking(sourceInUse: FrameSource): void {
     sourceFocal: sourceInUse.focal,
     onResult(result) {
       // The first result: the tracker has its NFT markers.
-      progress.done('nft');
+      loads.done('nft');
       // A page found (again) starts the smoothing over; the anchor follows in the render loop.
       if (result.transitions.some((t) => t.type === 'found')) smoother.reset();
       if (result.pose) smoother.addPose(result.pose, performance.now());
@@ -254,9 +246,7 @@ function startTracking(sourceInUse: FrameSource): void {
         }
       }
     },
-    onError(error) {
-      status.textContent = `Трекинг: ${error instanceof Error ? error.message : String(error)}`;
-    },
+    onError: (error) => reportError('Tracking', error),
   });
   tracking.start();
 }
@@ -282,7 +272,8 @@ async function startSource(): Promise<void> {
     setState('running');
   } catch (error) {
     frameSource?.stop();
-    setState('error', error instanceof Error ? error.message : String(error));
+    setState('error');
+    reportError('Camera', error);
   }
 }
 
@@ -292,6 +283,8 @@ startButton.element.addEventListener('click', () => {
     frameSource?.stop();
     setState('idle');
   } else {
+    // A new attempt: earlier errors are no longer shown.
+    failed = false;
     // Synchronously in the click: iOS allows audio only from within the user gesture.
     audio.unlock();
     void startSource();
@@ -340,6 +333,8 @@ renderer.setAnimationLoop((time) => {
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
   background.update(window.innerWidth, window.innerHeight, running);
+  // The canvas shows once the camera picture is there; until then, the Journey picture.
+  document.body.classList.toggle('camera-on', background.mesh.visible);
   renderer.render(scene, camera);
   if (hooks) {
     hooks.framesRendered += 1;

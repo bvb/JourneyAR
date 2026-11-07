@@ -10,7 +10,7 @@
     "unity:export": "node unity/run-unity.mjs Journey.UnityExport.SceneExporter.ExportAll",
     "gltf:inspect": "node gltf/inspect-export.mjs",
     "assets:publish": "node assets/publish.mjs",
-    "icons:publish": "node assets/icons.mjs",
+    "ui:publish": "node assets/ui-assets.mjs",
     "pages:normalize": "node images/normalize-pages.mjs",
     "nft:generate": "node nft/generate.mjs",
     "nft:probe": "node nft/probe.mjs"

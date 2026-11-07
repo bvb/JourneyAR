@@ -35,14 +35,6 @@ export interface ScenePinch {
   pivot?: [number, number, number];
 }
 
-/** Sizes of a scene's files, bytes (for the loading progress). */
-export interface SceneBytes {
-  model: number;
-  audio: number;
-  /** The three NFT marker files together. */
-  nft: number;
-}
-
 export interface SceneEntry {
   id: string;
   /** Page id of the tracked page in book-ar-pages, for example "page90". */
@@ -53,7 +45,6 @@ export interface SceneEntry {
   nft: string;
   audio: SceneAudio;
   anchor: SceneAnchor;
-  bytes: SceneBytes;
   pinch: ScenePinch;
 }
 
@@ -94,7 +85,6 @@ function parseScene(value: unknown, path: string): SceneEntry {
   const anchor = objectAt(scene['anchor'], `${path}.anchor`);
   const center = anchor['center'];
   if (!Array.isArray(center) || center.length !== 2) fail(`${path}.anchor.center`, '[x, y]');
-  const bytes = objectAt(scene['bytes'], `${path}.bytes`);
   const pinch = objectAt(scene['pinch'], `${path}.pinch`);
   const min = numberAt(pinch['min'], `${path}.pinch.min`, { positive: true });
   const max = numberAt(pinch['max'], `${path}.pinch.max`, { positive: true });
@@ -119,11 +109,6 @@ function parseScene(value: unknown, path: string): SceneEntry {
         numberAt(center[1], `${path}.anchor.center[1]`),
       ],
       width: numberAt(anchor['width'], `${path}.anchor.width`, { positive: true }),
-    },
-    bytes: {
-      model: numberAt(bytes['model'], `${path}.bytes.model`, { positive: true }),
-      audio: numberAt(bytes['audio'], `${path}.bytes.audio`, { positive: true }),
-      nft: numberAt(bytes['nft'], `${path}.bytes.nft`, { positive: true }),
     },
     pinch: {
       node: stringAt(pinch['node'], `${path}.pinch.node`),
