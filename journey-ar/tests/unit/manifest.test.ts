@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { Vector3 } from 'three';
+import { Euler, Matrix4, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { anchorMatrix, parseScenesManifest } from '../../src/scenes/manifest';
+import { anchorMatrix, markerToPage, parseScenesManifest } from '../../src/scenes/manifest';
 
 const ASSETS = new URL('../../assets/', import.meta.url);
 const PAGES = new URL('../../../original-sources/book-ar-pages/', import.meta.url);
@@ -86,6 +86,20 @@ describe('shipped scenes.json', () => {
       expect(anchor.width).toBeLessThan(manifest.page.width * 1.1);
     }
   });
+
+  it('makes the markers of whole pages, and of the cube on the daqri page', () => {
+    for (const { id, marker, anchor } of manifest.scenes) {
+      if (id === 'daqri') {
+        // The original Vuforia target: the anchor's square, to a pixel of the normalized page.
+        expect(marker.center[0]).toBeCloseTo(anchor.center[0], 0);
+        expect(marker.center[1]).toBeCloseTo(anchor.center[1], 0);
+        expect(marker.size[0]).toBeCloseTo(anchor.width, 0);
+        expect(marker.size[1]).toBeCloseTo(anchor.width, 0);
+      } else {
+        expect(marker).toEqual({ center: [0, 0], size: [303, 226] });
+      }
+    }
+  });
 });
 
 describe('parseScenesManifest', () => {
@@ -97,6 +111,7 @@ describe('parseScenesManifest', () => {
         page: 'page1',
         model: 'models/a.glb',
         nft: 'nft/a/a',
+        marker: { center: [50, -10], size: [100, 100] },
         audio: { src: 'audio/a.mp3', volume: 1, loop: true },
         anchor: { center: [0, 0], width: 200 },
         pinch: { node: 'Root', min: 1, max: 2 },
@@ -112,6 +127,9 @@ describe('parseScenesManifest', () => {
     const broken = structuredClone(valid);
     (broken.scenes[0]!.anchor as { width: unknown }).width = 'wide';
     expect(() => parseScenesManifest(broken)).toThrow('scenes[0].anchor.width');
+    const noSize = structuredClone(valid);
+    noSize.scenes[0]!.marker.size = [100, 0];
+    expect(() => parseScenesManifest(noSize)).toThrow('scenes[0].marker.size[1]');
   });
 
   it('rejects duplicate ids and inverted pinch limits', () => {
@@ -129,6 +147,30 @@ describe('parseScenesManifest', () => {
     expect(parseScenesManifest(withPivot).scenes[0]!.pinch.pivot).toEqual([0.1, 0.3, -0.2]);
     (withPivot.scenes[0]!.pinch as { pivot?: unknown }).pivot = [0.1, 0.3];
     expect(() => parseScenesManifest(withPivot)).toThrow('pinch.pivot');
+  });
+});
+
+describe('markerToPage', () => {
+  // A marker 100 x 60 mm centred at (50, -10) on the page; its bottom-left corner is (0, -40).
+  const marker = { center: [50, -10], size: [100, 60] } as const;
+  const camera = new Matrix4()
+    .makeRotationFromEuler(new Euler(0.4, -0.3, 0.2))
+    .setPosition(15, -20, -400);
+  const markerPose = camera.clone().multiply(new Matrix4().makeTranslation(0, -40, 0));
+  const pagePose = new Matrix4().fromArray(
+    markerToPage(markerPose.toArray(), { center: [...marker.center], size: [...marker.size] }),
+  );
+
+  it('gives the pose of the page whose part the marker is', () => {
+    for (const [a, b] of pagePose.toArray().map((v, i) => [v, camera.elements[i]!])) {
+      expect(a).toBeCloseTo(b!, 9);
+    }
+  });
+
+  it('keeps a whole-page marker centred on the page origin', () => {
+    const corner = new Matrix4().makeTranslation(-151.5, -113, 0);
+    const pose = markerToPage(corner.toArray(), { center: [0, 0], size: [303, 226] });
+    expect(Array.from(pose)).toEqual(new Matrix4().toArray());
   });
 });
 

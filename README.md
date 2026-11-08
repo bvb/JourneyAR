@@ -94,11 +94,14 @@ exist in the dev server only and start with the Start button:
   `window.__vcam` in the browser console;
 - `https://localhost:5173/?source=webrtc`: the stream of an open virtual camera
   (`npm run dev:vcam`; switch pages with keys 1–6, move the camera with the mouse). This also
-  works from a phone on the LAN;
+  works from a phone on the LAN. The app does not know the camera's focal length here and
+  assumes 63° along the long side of the frame, the virtual camera's default at any resolution;
+  after changing the virtual camera's angle, pass the same angle to the app as `?fov=`;
 - `https://localhost:5173/?source=video&src=/__recordings/<name>.webm`: a recording from
   `journey-ar/tests/recordings` (recorded by the virtual camera's Record button).
 
-Debug parameters: `?debug` (page outline and axes), `?fov=<degrees>`,
+Debug parameters: `?debug` (page outline and axes; on the daqri page also the outline of its
+cube marker), `?fov=<degrees>`,
 `?filter=native|none|oneeuro`, `?smooth=off`. A single scene without tracking:
 `https://localhost:5173/scene-preview.html?scene=<id>&t=<seconds>`, shown next to the Unity
 reference render.
@@ -159,18 +162,18 @@ Run all commands from the repository root.
 
 ### Asset pipeline
 
-| Command                                        | What it does                                                                                                                                           |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run check-env`                            | Checks ffmpeg, Python with UnityPy, the APK and the sources in `original-sources/`                                                                     |
-| `npm run apk:setup`                            | Creates the Python environment `tools/.out/pyenv` and installs UnityPy into it                                                                         |
-| `npm run apk:convert`                          | Converts the scenes of the APK to `tools/.out/export/<scene>.glb` with `export-report.json`; `-- --skip-read` reuses the last APK read                 |
-| `npm run gltf:inspect`                         | Validates the exported GLB files (gltf-validator) and checks them against the report                                                                   |
-| `npm run gltf:compare -- <dir> [dir]`          | Compares two exports: nodes, meshes, materials, texture pixels, animations; the second defaults to `tools/.out/export`                                 |
-| `npm run pages:normalize`                      | Page scans → `pages-for-nft/<scene>.jpg` (1700×1268, symmetric crop to the page proportions)                                                           |
-| `npm run nft:generate -- [scene...]`           | NFT markers (`.iset`, `.fset`, `.fset3`) into `journey-ar/assets/nft/<scene>/`                                                                         |
-| `npm run nft:probe -- [scene...] [--together]` | Checks the markers without a browser: synthetic frames with a known pose, pose error, detection time, page confusion                                   |
-| `npm run assets:publish`                       | Optimizes the GLB files, encodes the audio, writes `scenes.json` into `journey-ar/assets`; `-- --reset-anchors` places the scenes on their pages again |
-| `npm run ui:publish`                           | Icons, web manifest, `background.jpg` and `logo.svg` into `journey-ar/assets`                                                                          |
+| Command                                        | What it does                                                                                                                                              |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check-env`                            | Checks ffmpeg, Python with UnityPy, the APK and the sources in `original-sources/`                                                                        |
+| `npm run apk:setup`                            | Creates the Python environment `tools/.out/pyenv` and installs UnityPy into it                                                                            |
+| `npm run apk:convert`                          | Converts the scenes of the APK to `tools/.out/export/<scene>.glb` with `export-report.json`; `-- --skip-read` reuses the last APK read                    |
+| `npm run gltf:inspect`                         | Validates the exported GLB files (gltf-validator) and checks them against the report                                                                      |
+| `npm run gltf:compare -- <dir> [dir]`          | Compares two exports: nodes, meshes, materials, texture pixels, animations; the second defaults to `tools/.out/export`                                    |
+| `npm run pages:normalize`                      | Page scans → `pages-for-nft/<scene>.jpg` (1700×1268, symmetric crop to the page proportions)                                                              |
+| `npm run nft:generate -- [scene...]`           | NFT markers (`.iset`, `.fset`, `.fset3`) into `journey-ar/assets/nft/<scene>/`: the whole page, or for daqri the cube alone (the original Vuforia target) |
+| `npm run nft:probe -- [scene...] [--together]` | Checks the markers without a browser: synthetic frames with a known pose, pose error, detection time, page confusion                                      |
+| `npm run assets:publish`                       | Optimizes the GLB files, encodes the audio, writes `scenes.json` into `journey-ar/assets`; `-- --reset-anchors` places the scenes on their pages again    |
+| `npm run ui:publish`                           | Icons, web manifest, `background.jpg` and `logo.svg` into `journey-ar/assets`                                                                             |
 
 Typical sequences:
 

@@ -6,6 +6,8 @@
 // no PinchScale. `uvScrolls` add texture scrolling the export cannot express (published as
 // AnimatedUVs components, which the app plays): node, its material index, offset per second.
 // `removeNodes` are left out of the published scene (with their children).
+// `marker: 'target'` makes the NFT marker from the original Vuforia target's place on the page
+// (as the original app tracked it) instead of the whole page.
 export const SCENES = [
   { id: 'character', page: 'page32', target: 'Character' },
   { id: 'creature', page: 'page52', target: 'Creature' },
@@ -24,11 +26,13 @@ export const SCENES = [
   // Its sky scrolled with a legacy Animation (SkyScroll, played automatically in the 2012 build:
   // _MainTex.offset.x of the sky's first material from 0 to 1 in 35 s, looping; the clip's second
   // curve names a node that does not exist). Without the "Tap here to visit us online" text: its
-  // link (TouchRay to daqri.com) is gone with the company.
+  // link (TouchRay to daqri.com) is gone with the company. Tracked by the cube alone, like the
+  // original (its Vuforia target): the rest of the page is white paper and text.
   {
     id: 'daqri',
     page: 'page166',
     target: 'daqri',
+    marker: 'target',
     pinch: { node: 'DaqriBeach_Prefab', min: 1, max: 2 },
     uvScrolls: [{ node: 'BeachSkyOverlay_FBX', materialIndex: 0, rate: [1 / 35, 0] }],
     removeNodes: ['TapHereTextMesh_FBX'],

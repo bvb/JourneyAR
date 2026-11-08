@@ -1,4 +1,4 @@
-import { type CameraPose, type VirtualCamera, horizontalFov } from '../core';
+import { type CameraPose, type VirtualCamera, horizontalFov, verticalFov } from '../core';
 import { POSE_PRESETS, RESOLUTIONS } from './presets';
 
 const PAGE_LABELS: Record<string, string> = {
@@ -144,8 +144,8 @@ export function buildPanel(root: HTMLElement, vcam: VirtualCamera): void {
     vcam.setFrame({ width, height });
   });
   const fovRow = numberRow(
-    'Обзор по вертикали, °',
-    { min: 20, max: 100, step: 0.5 },
+    'Обзор по длинной стороне, °',
+    { min: 20, max: 120, step: 0.5 },
     () => vcam.getFrame().fov,
     (fov) => vcam.setFrame({ fov }),
   );
@@ -179,7 +179,7 @@ export function buildPanel(root: HTMLElement, vcam: VirtualCamera): void {
     const frame = vcam.getFrame();
     resolution.value = `${frame.width}x${frame.height}`;
     const truth = vcam.groundTruth();
-    frameInfo.textContent = `По горизонтали ${horizontalFov(frame).toFixed(1)}°, фокус ${truth.focal.toFixed(1)} px`;
+    frameInfo.textContent = `По горизонтали ${horizontalFov(frame).toFixed(1)}°, по вертикали ${verticalFov(frame).toFixed(1)}°, фокус ${truth.focal.toFixed(1)} px`;
     const m = truth.modelView;
     const distance = Math.hypot(m[12]!, m[13]!, m[14]!);
     truthInfo.textContent =

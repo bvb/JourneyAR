@@ -46,7 +46,7 @@ test('renders the page where the ground truth says', async ({ page }) => {
     const vcam = window.__vcam!;
     vcam.setPaused(true);
     await vcam.setPage('creature');
-    vcam.setFrame({ width: 640, height: 480, fov: 49.4 });
+    vcam.setFrame({ width: 640, height: 480, fov: 63 });
     vcam.setPose({ target: [0, -5], distance: 420, tilt: 30, azimuth: 15, roll: 10 });
     vcam.renderFrame();
     const copy = document.createElement('canvas');

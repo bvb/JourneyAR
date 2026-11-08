@@ -2,6 +2,7 @@
 // low resolution (position and uniform scale), then a local refinement of position and of the
 // horizontal and vertical scale at roughly the texture's own resolution. The score is the
 // normalized cross-correlation, so the scan's brightness and contrast do not matter.
+import { PAGE_SIZE_MM } from '../config.mjs';
 import { decodeGray, imageSize } from './images.mjs';
 
 const COARSE_PAGE_WIDTH = 160;
@@ -162,5 +163,25 @@ export function locateTarget(pagePath, textureJpeg, aspect) {
       height: texture.width * sx * k * aspect,
     },
     scaleRatio: sy / sx,
+  };
+}
+
+/**
+ * Where a Vuforia target (an entry of readVuforiaTargets) lies on a page scan, in page
+ * millimetres, unrounded: `center` (origin at the page centre, X to the right, Y to the top of
+ * the page) and `size`, plus the match (score, rectangle in scan pixels). Assumes the scan
+ * covers the whole page width (see the page normalization in the plan).
+ */
+export function locateTargetOnPage(pagePath, target) {
+  const match = locateTarget(pagePath, target.texture, target.size[1] / target.size[0]);
+  const { rect, pageSize } = match;
+  const mmPerPixel = PAGE_SIZE_MM.width / pageSize.width;
+  return {
+    ...match,
+    center: [
+      (rect.left + rect.width / 2 - pageSize.width / 2) * mmPerPixel,
+      (pageSize.height / 2 - (rect.top + rect.height / 2)) * mmPerPixel,
+    ],
+    size: [rect.width * mmPerPixel, rect.height * mmPerPixel],
   };
 }

@@ -27,7 +27,11 @@ export interface CameraPose {
 export interface FrameSettings {
   width: number;
   height: number;
-  /** Vertical field of view, degrees. */
+  /**
+   * Field of view along the long side of the frame, degrees: the app's assumption (`?fov=`).
+   * Like a phone camera, a change of the frame proportions keeps it: a 16:9 frame is a 4:3
+   * sensor cropped across the short side.
+   */
   fov: number;
 }
 
@@ -39,8 +43,8 @@ export const DEFAULT_POSE: CameraPose = {
   roll: 0,
 };
 
-/** 640x480 with about 63 degrees horizontal field of view, like a typical phone camera. */
-export const DEFAULT_FRAME: FrameSettings = { width: 640, height: 480, fov: 49.4 };
+/** 640x480 with 63 degrees horizontal field of view, like a typical phone camera. */
+export const DEFAULT_FRAME: FrameSettings = { width: 640, height: 480, fov: 63 };
 
 export const MAX_TILT = 85;
 
@@ -74,12 +78,17 @@ export function modelViewMatrix(pose: CameraPose): Matrix4 {
 
 /** Focal length in pixels for the frame (square pixels). */
 export function focalLength(frame: FrameSettings): number {
-  return frame.height / 2 / Math.tan((frame.fov * DEG) / 2);
+  return Math.max(frame.width, frame.height) / 2 / Math.tan((frame.fov * DEG) / 2);
 }
 
 /** Horizontal field of view of the frame, degrees. */
 export function horizontalFov(frame: FrameSettings): number {
   return (2 * Math.atan(frame.width / 2 / focalLength(frame))) / DEG;
+}
+
+/** Vertical field of view of the frame, degrees (three.js PerspectiveCamera.fov). */
+export function verticalFov(frame: FrameSettings): number {
+  return (2 * Math.atan(frame.height / 2 / focalLength(frame))) / DEG;
 }
 
 /**

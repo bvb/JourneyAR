@@ -1,6 +1,4 @@
-import { type VirtualCamera, cameraMatrix } from '../core';
-
-const DEG = Math.PI / 180;
+import { type VirtualCamera, cameraMatrix, focalLength } from '../core';
 
 function wrapDegrees(value: number): number {
   return ((((value + 180) % 360) + 360) % 360) - 180;
@@ -34,7 +32,7 @@ export function attachViewControls(element: HTMLElement, vcam: VirtualCamera): v
     const rect = vcam.canvas.getBoundingClientRect();
     const shownHeight =
       frame.height * Math.min(rect.width / frame.width, rect.height / frame.height);
-    const mmPerPixel = (2 * pose.distance * Math.tan((frame.fov * DEG) / 2)) / shownHeight;
+    const mmPerPixel = (pose.distance * frame.height) / focalLength(frame) / shownHeight;
     // The page follows the pointer: move the target against the camera's right and up axes.
     const m = cameraMatrix(pose).elements;
     vcam.setPose({

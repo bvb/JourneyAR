@@ -25,6 +25,7 @@ import {
   modelViewMatrix,
   pageInView,
   projectPoint,
+  verticalFov,
 } from './pose';
 
 /** The exact camera state of the last rendered frame, to compare tracking results with. */
@@ -270,7 +271,7 @@ export class VirtualCamera {
   private applyFrame(): void {
     // The drawing buffer is the frame; the page layout scales the canvas on screen.
     this.renderer.setSize(this.frame.width, this.frame.height, false);
-    this.camera.fov = this.frame.fov;
+    this.camera.fov = verticalFov(this.frame);
     this.camera.aspect = this.frame.width / this.frame.height;
     this.camera.near = NEAR_MM;
     this.camera.far = FAR_MM;

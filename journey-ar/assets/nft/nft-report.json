@@ -3,6 +3,16 @@
     "id": "character",
     "width": 1700,
     "dpi": 142.5082508250825,
+    "region": {
+      "center": [
+        0,
+        0
+      ],
+      "size": [
+        303,
+        226
+      ]
+    },
     "entropy": 3.68,
     "tracking": [
       {
@@ -162,6 +172,16 @@
     "id": "creature",
     "width": 1700,
     "dpi": 142.5082508250825,
+    "region": {
+      "center": [
+        0,
+        0
+      ],
+      "size": [
+        303,
+        226
+      ]
+    },
     "entropy": 3.87,
     "tracking": [
       {
@@ -321,6 +341,16 @@
     "id": "landscape",
     "width": 1700,
     "dpi": 142.5082508250825,
+    "region": {
+      "center": [
+        0,
+        0
+      ],
+      "size": [
+        303,
+        226
+      ]
+    },
     "entropy": 4.23,
     "tracking": [
       {
@@ -480,6 +510,16 @@
     "id": "architecture",
     "width": 1700,
     "dpi": 142.5082508250825,
+    "region": {
+      "center": [
+        0,
+        0
+      ],
+      "size": [
+        303,
+        226
+      ]
+    },
     "entropy": 4.74,
     "tracking": [
       {
@@ -639,6 +679,16 @@
     "id": "sequence",
     "width": 1700,
     "dpi": 142.5082508250825,
+    "region": {
+      "center": [
+        0,
+        0
+      ],
+      "size": [
+        303,
+        226
+      ]
+    },
     "entropy": 4.31,
     "tracking": [
       {
@@ -796,161 +846,139 @@
   },
   {
     "id": "daqri",
-    "width": 1700,
+    "width": 554,
     "dpi": 142.5082508250825,
-    "entropy": 2.63,
+    "region": {
+      "center": [
+        58.82,
+        -7.31
+      ],
+      "size": [
+        98.74,
+        98.74
+      ]
+    },
+    "entropy": 4.9,
     "tracking": [
       {
         "dpi": 142.507996,
-        "features": 93
-      },
-      {
-        "dpi": 126.838799,
-        "features": 80
-      },
-      {
-        "dpi": 100.67202,
-        "features": 61
-      },
-      {
-        "dpi": 79.903435,
         "features": 47
       },
       {
-        "dpi": 63.419399,
-        "features": 33
+        "dpi": 115.232002,
+        "features": 42
       },
       {
-        "dpi": 50.33601,
-        "features": 26
+        "dpi": 91.459702,
+        "features": 23
       },
       {
-        "dpi": 39.951717,
-        "features": 15
+        "dpi": 72.591614,
+        "features": 13
       },
       {
-        "dpi": 31.7097,
-        "features": 11
+        "dpi": 57.616001,
+        "features": 9
       },
       {
-        "dpi": 25.168005,
+        "dpi": 45.729851,
         "features": 7
       },
       {
-        "dpi": 19.975859,
+        "dpi": 36.295807,
         "features": 5
       },
       {
-        "dpi": 15.854849,
-        "features": 3
+        "dpi": 28.808001,
+        "features": 4
       },
       {
-        "dpi": 12.584002,
+        "dpi": 22.864925,
         "features": 1
       },
       {
-        "dpi": 9.987928,
-        "features": 2
-      },
-      {
-        "dpi": 7.927424,
-        "features": 2
-      },
-      {
-        "dpi": 6.292,
+        "dpi": 18.147903,
         "features": 1
       },
       {
-        "dpi": 4.993964,
+        "dpi": 14.404,
+        "features": 1
+      },
+      {
+        "dpi": 11.432463,
         "features": 0
       },
       {
-        "dpi": 3.963712,
+        "dpi": 9.073952,
         "features": 0
       },
       {
-        "dpi": 3.146,
+        "dpi": 7.202,
         "features": 0
       }
     ],
     "freak": [
       {
         "dpi": 142.507996,
-        "features": 286
+        "features": 330
       },
       {
-        "dpi": 126.838799,
-        "features": 277
+        "dpi": 115.232002,
+        "features": 338
       },
       {
-        "dpi": 100.67202,
-        "features": 252
+        "dpi": 91.459702,
+        "features": 500
       },
       {
-        "dpi": 79.903435,
-        "features": 264
+        "dpi": 72.591614,
+        "features": 345
       },
       {
-        "dpi": 63.419399,
-        "features": 253
+        "dpi": 57.616001,
+        "features": 213
       },
       {
-        "dpi": 50.33601,
-        "features": 460
+        "dpi": 45.729851,
+        "features": 160
       },
       {
-        "dpi": 39.951717,
-        "features": 261
+        "dpi": 36.295807,
+        "features": 117
       },
       {
-        "dpi": 31.7097,
-        "features": 192
+        "dpi": 28.808001,
+        "features": 69
       },
       {
-        "dpi": 25.168005,
-        "features": 135
-      },
-      {
-        "dpi": 19.975859,
-        "features": 98
-      },
-      {
-        "dpi": 15.854849,
-        "features": 74
-      },
-      {
-        "dpi": 12.584002,
-        "features": 57
-      },
-      {
-        "dpi": 9.987928,
+        "dpi": 22.864925,
         "features": 43
       },
       {
-        "dpi": 7.927424,
-        "features": 42
+        "dpi": 18.147903,
+        "features": 26
       },
       {
-        "dpi": 6.292,
-        "features": 24
+        "dpi": 14.404,
+        "features": 20
       },
       {
-        "dpi": 4.993964,
-        "features": 17
+        "dpi": 11.432463,
+        "features": 15
       },
       {
-        "dpi": 3.963712,
+        "dpi": 9.073952,
         "features": 12
       },
       {
-        "dpi": 3.146,
-        "features": 4
+        "dpi": 7.202,
+        "features": 6
       }
     ],
     "files": {
-      "iset": 111427,
-      "fset": 8032,
-      "fset3": 363364
+      "iset": 47018,
+      "fset": 3288,
+      "fset3": 289792
     }
   }
 ]

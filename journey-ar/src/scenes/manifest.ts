@@ -13,6 +13,16 @@ export interface SceneAnchor {
   width: number;
 }
 
+/**
+ * The part of the page a scene's NFT marker was made from (the whole page, or the original
+ * Vuforia target on it), in the page frame, mm. The tracker poses the marker by its bottom-left
+ * corner; markerToPage() turns that into the page pose.
+ */
+export interface SceneMarker {
+  center: [number, number];
+  size: [number, number];
+}
+
 export interface SceneAudio {
   /** URL relative to the app base. */
   src: string;
@@ -43,6 +53,7 @@ export interface SceneEntry {
   model: string;
   /** NFT marker URL prefix relative to the app base (+ .iset, .fset, .fset3). */
   nft: string;
+  marker: SceneMarker;
   audio: SceneAudio;
   anchor: SceneAnchor;
   pinch: ScenePinch;
@@ -74,6 +85,14 @@ function numberAt(value: unknown, path: string, { positive = false } = {}): numb
   return value;
 }
 
+function pairAt(value: unknown, path: string, { positive = false } = {}): [number, number] {
+  if (!Array.isArray(value) || value.length !== 2) fail(path, '[x, y]');
+  return [
+    numberAt(value[0], `${path}[0]`, { positive }),
+    numberAt(value[1], `${path}[1]`, { positive }),
+  ];
+}
+
 function booleanAt(value: unknown, path: string): boolean {
   if (typeof value !== 'boolean') fail(path, 'a boolean');
   return value;
@@ -83,6 +102,7 @@ function parseScene(value: unknown, path: string): SceneEntry {
   const scene = objectAt(value, path);
   const audio = objectAt(scene['audio'], `${path}.audio`);
   const anchor = objectAt(scene['anchor'], `${path}.anchor`);
+  const marker = objectAt(scene['marker'], `${path}.marker`);
   const center = anchor['center'];
   if (!Array.isArray(center) || center.length !== 2) fail(`${path}.anchor.center`, '[x, y]');
   const pinch = objectAt(scene['pinch'], `${path}.pinch`);
@@ -98,6 +118,10 @@ function parseScene(value: unknown, path: string): SceneEntry {
     page: stringAt(scene['page'], `${path}.page`),
     model: stringAt(scene['model'], `${path}.model`),
     nft: stringAt(scene['nft'], `${path}.nft`),
+    marker: {
+      center: pairAt(marker['center'], `${path}.marker.center`),
+      size: pairAt(marker['size'], `${path}.marker.size`, { positive: true }),
+    },
     audio: {
       src: stringAt(audio['src'], `${path}.audio.src`),
       volume: numberAt(audio['volume'], `${path}.audio.volume`),
@@ -166,4 +190,23 @@ export function anchorMatrix({ center, width }: SceneAnchor): Matrix4 {
     0, width, 0, 0,
     0, 0, 0, 1,
   );
+}
+
+/**
+ * Page pose (page frame -> camera, column-major) from the tracker's pose of a scene's marker,
+ * whose origin is the marker's bottom-left corner (tracker origin "corner"): the pose moved by
+ * the page position of that corner. Exact, unlike the tracker's own "center" origin, which
+ * takes the marker size from the DPI rounded down to whole dots.
+ */
+export function markerToPage(
+  markerPose: ArrayLike<number>,
+  { center, size }: SceneMarker,
+): Float64Array {
+  const x = size[0] / 2 - center[0];
+  const y = size[1] / 2 - center[1];
+  const out = Float64Array.from(markerPose);
+  for (let row = 0; row < 4; row += 1) {
+    out[12 + row] = markerPose[12 + row]! + markerPose[row]! * x + markerPose[4 + row]! * y;
+  }
+  return out;
 }

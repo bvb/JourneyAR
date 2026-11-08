@@ -33,7 +33,8 @@ const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!canvas) throw new Error('Canvas #scene not found');
 
 const source = parseFrameSource(window.location.search, import.meta.env.DEV);
-// ?debug: page outline and axes on the tracked page.
+// ?debug: page outline and axes on the tracked page, and the outline of its NFT marker when the
+// marker is a part of the page.
 const debug = new URLSearchParams(window.location.search).has('debug');
 const trackingOptions = parseTrackingOptions(window.location.search);
 const manifest = await loadScenesManifest(`${import.meta.env.BASE_URL}scenes.json`);
@@ -61,7 +62,7 @@ camera.matrixAutoUpdate = false;
 configureLegacyRendering(renderer, camera);
 
 // Page anchor in the page frame (mm, origin at the page centre, Y to the page top), posed by
-// the tracker. It carries the AR scenes and, with ?debug, the page outline and axes.
+// the tracker. It carries the AR scenes and, with ?debug, the page and marker outlines and axes.
 const anchor = new Group();
 anchor.matrixAutoUpdate = false;
 anchor.visible = false;
@@ -69,19 +70,34 @@ const { width: pageWidth, height: pageHeight } = manifest.page;
 const debugGroup = new Group();
 debugGroup.visible = debug;
 anchor.add(debugGroup);
+/** Corners of a rectangle in the page frame (mm), for an outline. */
+function rectangle(center: readonly number[], width: number, height: number): Vector3[] {
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([x, y]) => new Vector3(center[0]! + (x! * width) / 2, center[1]! + (y! * height) / 2, 0));
+}
+const markerOutlines = new Map(
+  manifest.scenes
+    .filter(({ marker }) => marker.size[0] < pageWidth - 1 || marker.size[1] < pageHeight - 1)
+    .map(({ id, marker }) => {
+      const outline = new LineLoop(
+        new BufferGeometry().setFromPoints(rectangle(marker.center, ...marker.size)),
+        new LineBasicMaterial({ color: 0xffb000 }),
+      );
+      outline.visible = false;
+      return [id, outline];
+    }),
+);
 debugGroup.add(
   new LineLoop(
-    new BufferGeometry().setFromPoints(
-      [
-        [-1, -1],
-        [1, -1],
-        [1, 1],
-        [-1, 1],
-      ].map(([x, y]) => new Vector3((x! * pageWidth) / 2, (y! * pageHeight) / 2, 0)),
-    ),
+    new BufferGeometry().setFromPoints(rectangle([0, 0], pageWidth, pageHeight)),
     new LineBasicMaterial({ color: 0x00e0ff }),
   ),
   new AxesHelper(60),
+  ...markerOutlines.values(),
 );
 scene.add(anchor);
 
@@ -239,6 +255,7 @@ function startTracking(sourceInUse: FrameSource): void {
       if (result.transitions.some((t) => t.type === 'found')) smoother.reset();
       if (result.pose) smoother.addPose(result.pose, performance.now());
       anchor.visible = result.pose !== null;
+      for (const [id, outline] of markerOutlines) outline.visible = id === result.scene;
       arScenes.setTracked(result.scene);
       audio.setTracked(result.scene);
       trackedScene = result.scene;

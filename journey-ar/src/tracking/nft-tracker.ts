@@ -6,7 +6,7 @@ import {
   type Viewport,
   createNFTTrackerWorker,
 } from '@webarkit/jsartoolkit-nft/client';
-import type { SceneEntry } from '../scenes/manifest';
+import { type SceneEntry, type SceneMarker, markerToPage } from '../scenes/manifest';
 import { type Intrinsics, cameraParamBytes } from './camera-params';
 import { PageSelector } from './page-selector';
 
@@ -42,7 +42,8 @@ export interface TrackingResult {
  * NFT tracking of the book pages with jsartoolkit-nft in a worker. All markers are loaded,
  * but one page is active at a time: while a page is tracked, no other page is searched for
  * (continuousDetection off) unless it tracks with a high error (PageSelector), and the page
- * counts as lost on its first untracked frame.
+ * counts as lost on its first untracked frame. A marker covers its whole page or a part of it
+ * (scenes.json `marker`); the results are page poses either way.
  */
 export class NftTracker {
   private readonly selector = new PageSelector();
@@ -51,6 +52,7 @@ export class NftTracker {
   private constructor(
     private readonly worker: NFTTrackerWorker,
     private readonly scenesById: Map<number, string>,
+    private readonly markers: Map<string, SceneMarker>,
     readonly intrinsics: Intrinsics,
   ) {}
 
@@ -72,7 +74,7 @@ export class NftTracker {
     );
     const loads = await worker.addNFTTargets(
       setup.scenes.map((scene) => new URL(scene.nft, base).href),
-      { origin: 'center', probeZFT: false },
+      { origin: 'corner', probeZFT: false },
     );
     const scenesById = new Map<number, string>();
     loads.forEach((load, i) => {
@@ -82,7 +84,8 @@ export class NftTracker {
       }
       scenesById.set(load.info.id, scene.id);
     });
-    return new NftTracker(worker, scenesById, setup.intrinsics);
+    const markers = new Map(setup.scenes.map((scene) => [scene.id, scene.marker]));
+    return new NftTracker(worker, scenesById, markers, setup.intrinsics);
   }
 
   /** Tracks one frame; null when the worker was still busy with the previous one. */
@@ -104,7 +107,7 @@ export class NftTracker {
     const pick = found.find((target) => this.scenesById.get(target.id) === scene);
     return {
       scene,
-      pose: pick?.pose ?? null,
+      pose: scene && pick?.pose ? markerToPage(pick.pose, this.markers.get(scene)!) : null,
       error: pick?.error ?? null,
       transitions: selection.transitions,
       processMs: result.processMs,

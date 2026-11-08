@@ -10,9 +10,13 @@
 // <dir>/<id>/<id>.{iset,fset,fset3} are the markers (default: the app's, journey-ar/assets/nft;
 // a relative <dir> is relative to tools/); the frames are rendered from
 // pages-for-nft/<id>.jpg (the page as printed, 303 x 226 mm).
+// A marker of a part of its page (`region` in <dir>/nft-report.json, see nft/generate.mjs) is
+// looked at the way a page is: the views are moved to the region's centre and scaled by its width
+// relative to the page width. The pose is taken as in the app (tracker origin "corner", moved by
+// the region), and the errors are measured at the marker's centre.
 import { createNFTTracker } from '@webarkit/jsartoolkit-nft';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { AR_ASSETS, FFMPEG, NORMALIZED_PAGES, PAGE_SIZE_MM } from '../config.mjs';
 import { selectScenes } from '../scenes.mjs';
@@ -236,6 +240,11 @@ function fromGl(m) {
   return { R, t };
 }
 
+/** The pose (OpenCV rows and t) with its origin moved to the point `p` of its frame. */
+function moveOrigin({ R, t }, p) {
+  return { R, t: t.map((v, i) => v + dot(R[i], p)) };
+}
+
 function poseError(estimate, truth) {
   const translation = Math.hypot(...sub(estimate.t, truth.t));
   // Angle of R_est * R_truth^T.
@@ -284,7 +293,7 @@ async function createTracker(sceneList) {
     logLevel: 3,
   });
   const markers = sceneList.map((scene) => path.join(markersDir, scene.id, scene.id));
-  const loads = await tracker.addNFTTargets(markers, { origin: 'center' });
+  const loads = await tracker.addNFTTargets(markers, { origin: 'corner' });
   const ids = new Map();
   loads.forEach((load, i) => {
     if (load.status !== 'loaded') throw new Error(`${markers[i]}: ${load.message}`);
@@ -299,6 +308,16 @@ for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
   EMPTY_FRAME[i * 4 + 3] = 255;
 }
 
+// The page regions of the markers (whole pages when the report has none).
+const reportFile = path.join(markersDir, 'nft-report.json');
+const regions = new Map(
+  (existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, 'utf8')) : []).map((entry) => [
+    entry.id,
+    entry.region,
+  ]),
+);
+const WHOLE_PAGE = { center: [0, 0], size: [PAGE_SIZE_MM.width, PAGE_SIZE_MM.height] };
+
 const scenes = selectScenes(args);
 const shared = together ? await createTracker(scenes) : null;
 const results = [];
@@ -308,9 +327,26 @@ for (const scene of scenes) {
   const page = decodeGray(path.join(NORMALIZED_PAGES, `${scene.id}.jpg`));
   const levels = pyramid(page, 6);
   const { tracker, ids } = shared ?? (await createTracker([scene]));
+  const region = regions.get(scene.id) ?? WHOLE_PAGE;
+  const k = region.size[0] / PAGE_SIZE_MM.width;
+  const markerCenter = [region.center[0], region.center[1], 0];
+  // From the marker's bottom-left corner (tracker origin) to its centre.
+  const halfSize = [region.size[0] / 2, region.size[1] / 2, 0];
+  if (k < 0.999) {
+    console.log(
+      `${scene.id}: marker of ${region.size.join(' x ')} mm at ${region.center.join(', ')} ` +
+        `on the page; views scaled by ${k.toFixed(3)}`,
+    );
+  }
 
-  for (const view of VIEWS) {
+  for (const pageView of VIEWS) {
+    const view = {
+      ...pageView,
+      at: [region.center[0] + pageView.at[0] * k, region.center[1] + pageView.at[1] * k],
+      distance: pageView.distance * k,
+    };
     const truth = cameraPose(view);
+    const truthAtMarker = moveOrigin(truth, markerCenter);
     let firstFound = -1;
     const errors = [];
     const detectMs = [];
@@ -336,7 +372,7 @@ for (const scene of scenes) {
         } else {
           trackMs.push(result.processMs);
         }
-        errors.push(poseError(fromGl(target.pose), truth));
+        errors.push(poseError(moveOrigin(fromGl(target.pose), halfSize), truthAtMarker));
       }
     }
     // Background-only frames between views. Right after the page leaves, tracking may still

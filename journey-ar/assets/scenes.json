@@ -9,6 +9,16 @@
       "page": "page32",
       "model": "models/character.glb",
       "nft": "nft/character/character",
+      "marker": {
+        "center": [
+          0,
+          0
+        ],
+        "size": [
+          303,
+          226
+        ]
+      },
       "audio": {
         "src": "audio/character.mp3",
         "volume": 1,
@@ -32,6 +42,16 @@
       "page": "page52",
       "model": "models/creature.glb",
       "nft": "nft/creature/creature",
+      "marker": {
+        "center": [
+          0,
+          0
+        ],
+        "size": [
+          303,
+          226
+        ]
+      },
       "audio": {
         "src": "audio/creature.mp3",
         "volume": 1,
@@ -55,6 +75,16 @@
       "page": "page63",
       "model": "models/landscape.glb",
       "nft": "nft/landscape/landscape",
+      "marker": {
+        "center": [
+          0,
+          0
+        ],
+        "size": [
+          303,
+          226
+        ]
+      },
       "audio": {
         "src": "audio/landscape.mp3",
         "volume": 1,
@@ -83,6 +113,16 @@
       "page": "page90",
       "model": "models/architecture.glb",
       "nft": "nft/architecture/architecture",
+      "marker": {
+        "center": [
+          0,
+          0
+        ],
+        "size": [
+          303,
+          226
+        ]
+      },
       "audio": {
         "src": "audio/architecture.mp3",
         "volume": 1,
@@ -106,6 +146,16 @@
       "page": "page131",
       "model": "models/sequence.glb",
       "nft": "nft/sequence/sequence",
+      "marker": {
+        "center": [
+          0,
+          0
+        ],
+        "size": [
+          303,
+          226
+        ]
+      },
       "audio": {
         "src": "audio/sequence.mp3",
         "volume": 1,
@@ -129,6 +179,16 @@
       "page": "page166",
       "model": "models/daqri.glb",
       "nft": "nft/daqri/daqri",
+      "marker": {
+        "center": [
+          58.82,
+          -7.31
+        ],
+        "size": [
+          98.74,
+          98.74
+        ]
+      },
       "audio": {
         "src": "audio/daqri.mp3",
         "volume": 0.89,

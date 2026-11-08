@@ -10,6 +10,7 @@ import {
   modelViewMatrix,
   pageInView,
   projectPoint,
+  verticalFov,
 } from '../../src/core/pose';
 
 const pose = (patch: Partial<CameraPose>): CameraPose => ({ ...DEFAULT_POSE, ...patch });
@@ -63,9 +64,12 @@ describe('camera pose', () => {
 });
 
 describe('projection', () => {
-  it('uses the vertical field of view for the focal length', () => {
-    expect(focalLength({ width: 640, height: 480, fov: 90 })).toBeCloseTo(240);
-    expect(horizontalFov(DEFAULT_FRAME)).toBeCloseTo(63, 0);
+  it('takes the field of view along the long side, whatever the proportions', () => {
+    expect(focalLength({ width: 640, height: 480, fov: 90 })).toBeCloseTo(320);
+    expect(focalLength({ width: 480, height: 640, fov: 90 })).toBeCloseTo(320);
+    expect(horizontalFov(DEFAULT_FRAME)).toBeCloseTo(63);
+    expect(horizontalFov({ width: 1280, height: 720, fov: 63 })).toBeCloseTo(63);
+    expect(verticalFov({ width: 1280, height: 720, fov: 63 })).toBeCloseTo(38.0, 1);
   });
 
   it('maps a point 100 mm right at 300 mm to f/3 pixels right of the centre', () => {

@@ -4,7 +4,8 @@
 // - copies the original MP3 tracks to journey-ar/assets/audio/<id>.mp3 without re-encoding (they
 //   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other); a track in another format
 //   (the daqri waves, WAV) is encoded to MP3;
-// - writes journey-ar/assets/scenes.json (the NFT markers must exist: npm run nft:generate).
+// - writes journey-ar/assets/scenes.json (the NFT markers must exist: npm run nft:generate; the
+//   page region of each marker comes from its nft-report.json).
 //
 // The anchor of a scene (where its target sits on the page) is found by locating the original
 // Vuforia target texture on the page scan; a preview with the target outline goes to
@@ -28,7 +29,7 @@ import {
 } from '../config.mjs';
 import { SCENES } from '../scenes.mjs';
 import { drawBoxes } from './images.mjs';
-import { locateTarget } from './locate-target.mjs';
+import { locateTargetOnPage } from './locate-target.mjs';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { optimizeModel } from './optimize.mjs';
 import { readVuforiaTargets } from './vuforia.mjs';
@@ -148,20 +149,12 @@ function single(list, what, id) {
  * the page centre, X to the right, Y to the top of the page; `width` is the target width.
  */
 function locateAnchor(scene, target) {
-  const aspect = target.size[1] / target.size[0];
   const image = pageImage(scene.page);
-  const match = locateTarget(image, target.texture, aspect);
-  const { rect, pageSize } = match;
-  // Assumes the scan covers the whole page width (see the page normalization in the plan).
-  const mmPerPixel = PAGE_SIZE_MM.width / pageSize.width;
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
+  const match = locateTargetOnPage(image, target);
+  const { rect } = match;
   const anchor = {
-    center: [
-      round((centerX - pageSize.width / 2) * mmPerPixel, 1),
-      round((pageSize.height / 2 - centerY) * mmPerPixel, 1),
-    ],
-    width: round(rect.width * mmPerPixel, 1),
+    center: [round(match.center[0], 1), round(match.center[1], 1)],
+    width: round(match.size[0], 1),
   };
 
   mkdirSync(ANCHOR_PREVIEWS, { recursive: true });
@@ -177,6 +170,14 @@ function locateAnchor(scene, target) {
 }
 
 const previous = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { scenes: [] };
+// The page regions the NFT markers were made from (nft:generate).
+const NFT_REPORT = path.join(AR_ASSETS, 'nft', 'nft-report.json');
+const markerRegions = new Map(
+  (existsSync(NFT_REPORT) ? JSON.parse(readFileSync(NFT_REPORT, 'utf8')) : []).map((entry) => [
+    entry.id,
+    entry.region,
+  ]),
+);
 const vuforiaTargets = new Map(readVuforiaTargets(ORIGINAL_APK).map((t) => [t.name, t]));
 
 const scenes = [];
@@ -277,6 +278,8 @@ for (const scene of SCENES) {
     const file = path.join(AR_ASSETS, 'nft', scene.id, `${scene.id}.${ext}`);
     if (!existsSync(file)) throw new Error(`Missing ${file}; run npm run nft:generate`);
   }
+  const marker = markerRegions.get(scene.id);
+  if (!marker) throw new Error(`${scene.id}: no marker region in ${NFT_REPORT}; run nft:generate`);
 
   const target = vuforiaTargets.get(scene.target);
   if (!target) throw new Error(`${scene.id}: no Vuforia target ${scene.target}`);
@@ -288,6 +291,7 @@ for (const scene of SCENES) {
     page: scene.page,
     model: `models/${scene.id}.glb`,
     nft: `nft/${scene.id}/${scene.id}`,
+    marker,
     audio: { src: `audio/${scene.id}.mp3`, volume: audio.volume, loop: audio.loop },
     anchor: kept ?? locateAnchor(scene, target),
     pinch: {
