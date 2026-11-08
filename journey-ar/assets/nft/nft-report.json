@@ -3,7 +3,6 @@
     "id": "character",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 163.2971934,
     "entropy": 3.68,
     "tracking": [
       {
@@ -163,7 +162,6 @@
     "id": "creature",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 139.6977784,
     "entropy": 3.87,
     "tracking": [
       {
@@ -323,7 +321,6 @@
     "id": "landscape",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 75.94714529999997,
     "entropy": 4.23,
     "tracking": [
       {
@@ -483,7 +480,6 @@
     "id": "architecture",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 85.86482770000002,
     "entropy": 4.74,
     "tracking": [
       {
@@ -643,7 +639,6 @@
     "id": "sequence",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 105.46944630000002,
     "entropy": 4.31,
     "tracking": [
       {
@@ -803,7 +798,6 @@
     "id": "daqri",
     "width": 1700,
     "dpi": 142.5082508250825,
-    "seconds": 164.1751982,
     "entropy": 2.63,
     "tracking": [
       {

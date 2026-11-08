@@ -17,12 +17,9 @@ blob-report/
 *.log
 .env*.local
 
-# Source materials kept outside git (see .plans/plan.md, section 7)
-/book/
-# Old sources replaced by original-sources/, kept until deleted by hand
-/DELETE-ME-*/
+# Reference material kept outside git: videos of the original app
+/videos-from-internet/
 
 # OS files
 Thumbs.db
 .DS_Store
-/videos-from-internet/

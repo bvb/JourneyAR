@@ -99,7 +99,8 @@ artbook-project/                    git root, npm workspaces
 │  ├─ favicon/                      иконки приложения
 │  └─ journey-art1600.jpg           картинка до включения камеры
 ├─ pages-for-nft/<scene>.jpg        нормализованные страницы 1700×1268, общие для NFT и vcam
-└─ вне git: book/, videos-from-internet/, DELETE-ME-* (прежние источники)
+├─ README.md                       сборка, запуск и команды (на английском)
+└─ вне git: videos-from-internet/ (видео оригинального приложения)
 ```
 
 `journey-virtual-book-camera/book-ar-pages` — устаревшая копия (page32 и page52 там ещё старые развороты). Её удаляем, vcam берёт страницы из `pages-for-nft`.
@@ -425,6 +426,7 @@ artbook-project/                    git root, npm workspaces
    - `spatialBlend` по клипу 3.5 (музыка 2D → 0, волны daqri 3D → 1; приложение его не использует); `clipPath` — путь в выгрузке APK;
    - в отчёте: клип по умолчанию отмечен (`isDefault`), у Traveler_FBX клипа нет (в рипе стоял клип Dude, ни одна кривая не привязана), у `SkyScroll` `legacy: true`, неактивных объектов 0 (в APK все 508 активны), у TapHereText обе оси — Clamp.
    - `scenes:compare` с замороженными эталонами: 0.99–2.53/255, не больше 0.34 % пикселей > 32 (как и раньше); `scenes.json` и звук после `assets:publish` не изменились.
+4. **README и сборка с нуля** ✅ (2026-11-08, по просьбе пользователя). `README.md` на английском: требования (Node 26, npm 11, Git LFS, Python 3, интернет при первой сборке; для e2e — Edge и Chromium Playwright), релизная сборка и запуск (`npm run preview`, хостинг `journey-ar/dist` по HTTPS), разработка (vcam, тестовые источники, параметры отладки), конвейер ассетов и все команды `npm run`. `npm run build-all` — релиз на чистом клоне одной командой: `npm ci` → `apk:setup` → `check-env` → `apk:convert` → `gltf:inspect` → `pages:normalize` → `nft:generate` → `assets:publish` → `ui:publish` → `check` → `build`. Папки `DELETE-ME-*` и `book/` пользователь удалил; рабочая копия вычищена до состояния свежего клона (`git clean -fdx`, кроме `videos-from-internet/`), после чего `build-all` (~13 мин, из них NFT ~10) пересобрал ассеты байт в байт; отличалось только время генерации в `nft/nft-report.json` — его там больше нет (только в консоли). `npm ci` скачивает ffmpeg 6.1.1 с github.com (`ffmpeg-static`): при недоступном GitHub нужен `HTTPS_PROXY` или зеркало `FFMPEG_BINARIES_URL` (в README). Проверено: `check`, `e2e`, `scenes:compare` (как раньше), `e2e:full` 54 + 12, `npm run preview` раздаёт сборку.
 
 ## 4. Тестирование
 
@@ -495,5 +497,6 @@ artbook-project/                    git root, npm workspaces
 23. **Иконки приложения** — из `assets-favicon/`; до включения камеры — фон `book/journey-art1600.jpg` по высоте окна (оба теперь в `original-sources/`, решение 26).
 24. **Шаг 7 и остальное из фазы 5** считаются выполненными («приложение работает»); формат текстур (KTX2) не трогаем.
 25. **Запущенная кнопка сворачивается в полоску**, разворачивается касанием или свайпом вверх, без нажатия через 3 с сворачивается снова.
-26. **Исходники** (2026-11-08) — все в `original-sources/` (в git, LFS): APK, сканы страниц (`Artbook_Journey-page<N>.jpg`), иконки, фон. Нормализованные страницы — `pages-for-nft/`. Прежние папки — `DELETE-ME-*`, удаляет пользователь.
+26. **Исходники** (2026-11-08) — все в `original-sources/` (в git, LFS): APK, сканы страниц (`Artbook_Journey-page<N>.jpg`), иконки, фон. Нормализованные страницы — `pages-for-nft/`. Прежние папки — `DELETE-ME-*`, удаляет пользователь (удалены 2026-11-08).
 27. **Сцены — прямо из APK** (2026-11-08) конвертером под этот APK (UnityPy → GLB в формате прежней выгрузки), без Unity и без воссоздания Unity-проекта. Эталонные рендеры Unity заморожены в `tools/unity-reference/`.
+28. **README на английском и `build-all`** (2026-11-08): README — для людей (сборка, запуск, команды); релиз на чистом клоне — одна команда `npm run build-all`, она пересобирает и ассеты из `original-sources/`.

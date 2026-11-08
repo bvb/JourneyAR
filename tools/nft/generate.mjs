@@ -1,8 +1,9 @@
 // Generates ARToolKit NFT marker data (.iset, .fset, .fset3) for normalized page images with
 // @webarkit/nft-marker-creator-app, one process per page, sequentially. The image DPI is derived
 // from the image width and the physical page width, so tracker poses come out in millimetres.
-// Each run is logged to tools/.out/logs/nft-<id>-<width>.log; a summary with timings and feature
-// counts is written to <out>/nft-report.json.
+// Each run is logged to tools/.out/logs/nft-<id>-<width>.log; a summary with the feature counts is
+// written to <out>/nft-report.json (the timings go to the console only: the report is published
+// with the markers and must come out the same on every run).
 //
 // Usage: node nft/generate.mjs [scene ids...] [--pages=dir] [--out=dir] [--threads=n]
 // Defaults: all scenes, pages-for-nft, journey-ar/assets/nft (<out>/<id>/<id>.*).
@@ -92,7 +93,7 @@ for (const scene of selectScenes(args)) {
       statSync(path.join(target, `${scene.id}.${ext}`)).size,
     ]),
   );
-  const entry = { id: scene.id, ...result, ...parsed, files };
+  const entry = { id: scene.id, width: result.width, dpi: result.dpi, ...parsed, files };
   report.push(entry);
   const top = (list) =>
     list.find((level) => Math.abs(level.dpi - result.dpi) < 0.01)?.features ?? 0;
@@ -105,5 +106,7 @@ for (const scene of selectScenes(args)) {
 
 const reportFile = path.join(outDir, 'nft-report.json');
 const previous = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, 'utf8')) : [];
+// Reports written before the timings left them.
+for (const entry of previous) delete entry.seconds;
 const merged = [...previous.filter((p) => !report.some((r) => r.id === p.id)), ...report];
 writeFileSync(reportFile, `${JSON.stringify(merged, null, 2)}\n`);

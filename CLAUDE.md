@@ -2,7 +2,7 @@
 
 Браузерное AR-приложение для артбука Journey: при наведении камеры на страницу (Natural Feature Tracking) показывает анимированную 3D-сцену и играет звук. Работает в браузере на Android, iPhone и PC. Ремейк Unity + Vuforia приложения DAQRI 2012 года.
 
-**План и принятые решения — [.plans/plan.md](.plans/plan.md)** (источник истины; там же соответствие страниц, сцен и звуков).
+**План и принятые решения — [.plans/plan.md](.plans/plan.md)** (источник истины; там же соответствие страниц, сцен и звуков). Для людей — [README.md](README.md) (на английском): требования, релизная сборка, запуск, все команды `npm run` — обновлять вместе с командами.
 
 ## Структура
 
@@ -15,7 +15,7 @@
   - `favicon/` — иконки приложения от пользователя (favicon для браузеров), файлы как даны — источник для `ui:publish`;
   - `journey-art1600.jpg` — картинка до включения камеры (источник для `ui:publish`).
 - `pages-for-nft/<id>.jpg` — нормализованные страницы (`pages:normalize`): из них NFT-маркеры и страницы виртуальной камеры.
-- Вне git: `book/` (книга целиком), `videos-from-internet/` (видео работы оригинального приложения — эталон вида сцен), `DELETE-ME-*` (прежние источники, удаляются вручную).
+- Вне git: `videos-from-internet/` (видео работы оригинального приложения — эталон вида сцен).
 
 ## Команды (из корня)
 
@@ -25,6 +25,8 @@
 - `npm run e2e` — быстрый набор Playwright (~40 с): Edge, по одному короткому тесту на функцию (тесты с тегом `@regression` пропускаются).
 - `npm run e2e:full` — регрессия (~5 мин): все тесты journey-ar и виртуальной камеры в Edge и изолированном Chromium — метрики трекинга, все страницы, кривые звука, жесты, повторные циклы. Тяжёлые и подробные тесты помечаются `{ tag: '@regression' }`.
 - `npm run build` — сборка всех workspaces.
+- `npm run build-all` — релиз на чистом клоне одной командой: `npm ci` → `apk:setup` → `check-env` → `apk:convert` → `gltf:inspect` → `pages:normalize` → `nft:generate` → `assets:publish` → `ui:publish` → `check` → `build`; приложение — в `journey-ar/dist`. Пересобирает ассеты из `original-sources/` байт в байт (после него `git status` чистый). `npm ci` скачивает ffmpeg 6.1.1 с github.com (`ffmpeg-static`); если GitHub недоступен — `HTTPS_PROXY` или зеркало в `FFMPEG_BINARIES_URL` (`<url>/b6.1.1/ffmpeg-win32-x64.gz`, `win32-x64.README`, `win32-x64.LICENSE`).
+- `npm run preview` — релизная сборка на https://localhost:4173.
 - `npm run check-env` — проверка ffmpeg, Python с UnityPy, APK (датасет Vuforia читается) и исходников в `original-sources/`.
 - `npm run apk:setup` — Python-окружение конвертера (`tools/.out/pyenv`, UnityPy из `tools/apk/requirements.txt`); Python — `py -3` или `PYTHON_FOR_VENV`.
 - `npm run apk:convert` — сцены из APK в GLB (`tools/.out/export/<id>.glb`) с отчётом `export-report.json`: `tools/apk/read-apk.py` (UnityPy) выгружает данные сцен в `tools/.out/apk/`, `tools/apk/convert.mjs` собирает GLB (`-- --skip-read` — без повторного чтения APK).
@@ -76,4 +78,4 @@
 
 ## Язык
 
-Пользователь пишет по-русски; документация и план — на русском, код и комментарии в коде — на английском.
+Пользователь пишет по-русски; документация и план — на русском, код и комментарии в коде — на английском. Исключение — `README.md`: на английском.

@@ -1,8 +1,8 @@
 // Publishes the interface assets into journey-ar/assets:
-// - the favicons for the browsers, as given in assets-favicon/ (the web manifest gets the app's
-//   name and colours);
+// - the favicons for the browsers, as given in original-sources/favicon/ (the web manifest gets
+//   the app's name and colours);
 // - background.jpg: the picture behind the Start button until the camera starts
-//   (book/journey-art1600.jpg, outside git; as is);
+//   (original-sources/journey-art1600.jpg, as is);
 // - logo.svg: the traveller of the icon traced into a vector shape, white on transparent, for
 //   the Start/Stop button. The icons only exist as small images (the largest is
 //   mstile-150x150.png; safari-pinned-tab.svg is the outline of the whole square), so the shape

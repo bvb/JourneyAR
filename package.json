@@ -11,6 +11,8 @@
     "dev": "npm run dev -w journey-ar",
     "dev:vcam": "npm run dev -w journey-virtual-book-camera",
     "build": "npm run build --workspaces --if-present",
+    "build-all": "npm ci && npm run apk:setup && npm run check-env && npm run apk:convert && npm run gltf:inspect && npm run pages:normalize && npm run nft:generate && npm run assets:publish && npm run ui:publish && npm run check && npm run build",
+    "preview": "npm run preview -w journey-ar",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
