@@ -4,6 +4,8 @@ A browser AR companion for the art book _The Art of Journey_. Point a phone, tab
 one of six tracked pages and the page comes alive with an animated 3D scene and its music. It
 runs in the browser on Android, iPhone and desktop, with nothing to install.
 
+**Open the app: https://bvb.github.io/JourneyAR/**
+
 It is a remake of the 2012 DAQRI app (Unity 3.5 + Vuforia). The 3D scenes, sounds and target
 data are converted straight from the original Android app
 (`original-sources/Journey-AR-Viewer.1.0.apk`); Unity is not needed. Pages are tracked with
@@ -18,6 +20,7 @@ natural feature tracking (jsartoolkit-nft in a web worker), scenes are rendered 
 | `tools/`                       | Asset pipeline: APK converter, glTF checks, NFT markers, publishing. Paths in `tools/config.mjs` |
 | `original-sources/`            | Every source the assets are made from: the original APK, page scans, icons, background picture   |
 | `pages-for-nft/`               | Normalized page images, shared by the NFT markers and the virtual camera                         |
+| `.github/workflows/pages.yml`  | Publishing on GitHub Pages                                                                       |
 
 The project notes, the plan and the decisions log are in Russian: `CLAUDE.md` and
 `.plans/plan.md`.
@@ -42,8 +45,8 @@ The project notes, the plan and the decisions log are in Russian: `CLAUDE.md` an
 On a fresh clone, one command does everything:
 
 ```sh
-git clone <repository-url> artbook-project
-cd artbook-project
+git clone https://github.com/bvb/JourneyAR.git
+cd JourneyAR
 npm run build-all
 ```
 
@@ -74,7 +77,30 @@ byte for byte, so `git status` stays clean afterwards. When only the app code ha
   connections to Node.js.
 - **Hosting:** `journey-ar/dist/` is a static site. Put it on any web server with **HTTPS**:
   browsers give camera access only to secure pages. No special headers are needed. For a
-  sub-path, build with `npm run build -w journey-ar -- --base=/journey/`.
+  sub-path, build with `npm run build -w journey-ar -- --base=/journey/`. In Git Bash on
+  Windows, prefix the command with `MSYS_NO_PATHCONV=1`: otherwise Git Bash turns `/journey/`
+  into a Windows path.
+
+### GitHub Pages
+
+The app is published at https://bvb.github.io/JourneyAR/ by the workflow
+`.github/workflows/pages.yml`. It runs on every push to `master` and can also be started by
+hand on the Actions tab. The workflow:
+
+1. checks out the repository and downloads the Git LFS files. They are kept in the Actions
+   cache, because LFS bandwidth is limited, and downloaded again only when they change;
+2. runs `npm ci` and `npm run check`;
+3. builds the app with the site's base path (`/JourneyAR/`);
+4. publishes `journey-ar/dist` on GitHub Pages.
+
+The asset pipeline does not run there: the published assets are committed. GitHub Pages cannot
+serve the site straight from the branch, because the binary assets in the branch are LFS
+pointers.
+
+Setup, once: **Settings → Pages → Source: GitHub Actions**, with `master` as the default
+branch. If a deployment fails with "not allowed to deploy to github-pages", add `master` to
+**Settings → Environments → github-pages → Deployment branches**. GitHub Pages serves files
+with a 10-minute cache, so after a deployment the site can take a few minutes to update.
 
 Usage: press the round button at the bottom to start the camera and sound, then point the camera
 at a tracked page. Pinch to scale a scene, drag to move it, double-tap to reset.
@@ -180,3 +206,16 @@ Typical sequences:
 - the scenes changed: `apk:convert` → `gltf:inspect` → `scenes:compare` → `assets:publish`;
 - the page scans changed: `pages:normalize` → `nft:generate` → `assets:publish` →
   `nft:probe -- --together`.
+
+## License
+
+The source code is licensed under the [MIT License](LICENSE).
+
+_Journey_, _The Art of Journey_ and the original _Journey AR Viewer_ app (DAQRI, 2012), with
+their characters, art, 3D scenes, music, sounds and page images, are the property of their
+rights holders. This project uses them with permission. The MIT License does not cover them:
+see [NOTICE.md](NOTICE.md) for the files that contain this content. Do not reuse these files
+without the permission of the rights holders.
+
+The production build lists the licenses of the bundled libraries in `licenses.txt`: three.js
+(MIT) and jsartoolkit-nft (GNU LGPL 3.0).

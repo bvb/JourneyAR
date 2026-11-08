@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { thirdPartyLicenses } from './dev/licenses.ts';
 import { signalRelay } from './dev/signal-relay.ts';
 
 const PIPELINE_OUT = fileURLToPath(new URL('../tools/.out/', import.meta.url));
@@ -115,6 +116,7 @@ export default defineConfig({
     serveFolder('/__recordings', RECORDINGS),
     signalRelay(),
     nftWorkerFiles(),
+    thirdPartyLicenses(['@webarkit/jsartoolkit-nft']),
   ],
   server: { host: true, port: 5173, strictPort: true },
   preview: { host: true, port: 4173, strictPort: true },

@@ -1,0 +1,62 @@
+# Publishes the app on GitHub Pages (https://bvb.github.io/JourneyAR/) on every push to master.
+# The published assets are committed (Git LFS), so this is check + build; the asset pipeline
+# (build-all) is not run here.
+name: Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a running one is not cancelled.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # LFS bandwidth is limited: keep the objects in the cache and download them only when the
+      # set of LFS files changes. The unit tests need all of them (the APK, scans, models).
+      - name: List LFS objects
+        id: lfs
+        run: echo "hash=$(git lfs ls-files --long | cut -d ' ' -f1 | sort | sha256sum | cut -c1-64)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: .git/lfs/objects
+          key: lfs-${{ steps.lfs.outputs.hash }}
+          restore-keys: lfs-
+      - run: git lfs pull
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+      # base_path is /JourneyAR for the project site (empty with a custom domain).
+      - id: pages
+        uses: actions/configure-pages@v6
+      - run: npm run build -w journey-ar -- --base="${{ steps.pages.outputs.base_path }}/"
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: journey-ar/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
