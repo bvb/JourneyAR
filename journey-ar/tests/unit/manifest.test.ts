@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { anchorMatrix, parseScenesManifest } from '../../src/scenes/manifest';
 
 const ASSETS = new URL('../../assets/', import.meta.url);
-const PAGES = new URL('../../../book-ar-pages/', import.meta.url);
+const PAGES = new URL('../../../original-sources/book-ar-pages/', import.meta.url);
 
 function readJson(url: URL): unknown {
   return JSON.parse(readFileSync(url, 'utf8'));
@@ -51,7 +51,7 @@ describe('shipped scenes.json', () => {
         expect(existsSync(new URL(`${scene.nft}.${ext}`, ASSETS))).toBe(true);
       }
       expect(existsSync(new URL(scene.audio.src, ASSETS))).toBe(true);
-      expect(existsSync(new URL(`Artbook_Journey-${scene.page}-image1.jpg`, PAGES))).toBe(true);
+      expect(existsSync(new URL(`Artbook_Journey-${scene.page}.jpg`, PAGES))).toBe(true);
       expect(glbNodeNames(new URL(scene.model, ASSETS))).toContain(scene.pinch.node);
     },
   );

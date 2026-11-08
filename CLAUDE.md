@@ -9,9 +9,13 @@
 - `journey-ar/` — основное приложение (Vite + TS + three.js). `assets/` — publicDir Vite: `models/*.glb`, `audio/*.mp3`, `nft/<scene>/`, `scenes.json`, иконки (`favicon.ico`, PNG, `site.webmanifest`, `logo.svg`).
 - `journey-virtual-book-camera/` — виртуальная камера для тестов (страницы в 3D, выдача потока в приложение).
 - `tools/` — конвейер ассетов (Unity-экспорт, NFT, gltf-transform, ffmpeg). Пути к внешним программам — в `tools/config.mjs`, переопределяются переменными окружения.
-- `book-ar-pages/` — изображения отслеживаемых страниц (в git, через LFS).
-- `assets-favicon/` — иконки приложения от пользователя (favicon для браузеров) — источник для `ui:publish`; файлы как даны (не форматируются prettier).
-- Вне git: `book/`, `unity-data-project/`, `android-ar-viewer.1.0/`, `videos-from-internet/` (видео работы оригинального приложения — эталон вида сцен).
+- `original-sources/` — все исходники, из которых получаются данные и ассеты (в git, бинарные — через LFS; не форматируются prettier):
+  - `Journey-AR-Viewer.1.0.apk` — оригинальное приложение 2012 года (Unity 3.5.5f3 + Vuforia): сцены, модели, текстуры, звук, датасет Vuforia;
+  - `book-ar-pages/Artbook_Journey-page<N>.jpg` — сканы отслеживаемых страниц;
+  - `favicon/` — иконки приложения от пользователя (favicon для браузеров), файлы как даны — источник для `ui:publish`;
+  - `journey-art1600.jpg` — картинка до включения камеры (источник для `ui:publish`).
+- `pages-for-nft/<id>.jpg` — нормализованные страницы (`pages:normalize`): из них NFT-маркеры и страницы виртуальной камеры.
+- Вне git: `book/` (книга целиком), `videos-from-internet/` (видео работы оригинального приложения — эталон вида сцен), `DELETE-ME-*` (прежние источники, удаляются вручную).
 
 ## Команды (из корня)
 
@@ -29,8 +33,8 @@
 - `npm run gltf:inspect` — gltf-validator + сверка GLB с отчётом Unity.
 - `npm run scenes:compare` — рендер каждой сцены в three.js (Edge) рядом с эталоном Unity: выгрузка Unity → `tools/.out/compare/<id>.png` и опубликованная оптимизированная модель → `<id>-published.png` (пороги одни). Вручную: `https://localhost:5173/scene-preview.html?scene=<id>&t=<сек>` (только dev-сервер).
 - `npm run assets:publish` — GLB (оптимизированные, `tools/assets/optimize.mjs`) и MP3 в `journey-ar/assets`, генерация `scenes.json`; привязка сцен к страницам — поиском текстур таргетов Vuforia на сканах (превью в `tools/.out/anchors/`). Уже записанные привязки сохраняются, пересчёт: `npm run assets:publish -- --reset-anchors`. Там же точка масштабирования (`pinch.pivot` — центр узлов из `pinchPivot` в `tools/scenes.mjs`).
-- `npm run ui:publish` — ассеты интерфейса в `journey-ar/assets`: иконки из `assets-favicon/` (манифест — с именем и цветами приложения), `background.jpg` (картинка до включения камеры, из `book/journey-art1600.jpg`) и `logo.svg` — фигурка путника, векторизованная из `mstile-150x150.png` (`tools/images/trace.mjs`: сглаживание, изолиния, упрощение) — для кнопки.
-- `npm run pages:normalize` — сканы страниц → `book-ar-pages/normalized/<id>.jpg` (1700×1268, 142.5 dpi, симметричная обрезка).
+- `npm run ui:publish` — ассеты интерфейса в `journey-ar/assets`: иконки из `original-sources/favicon/` (манифест — с именем и цветами приложения), `background.jpg` (картинка до включения камеры, из `original-sources/journey-art1600.jpg`) и `logo.svg` — фигурка путника, векторизованная из `mstile-150x150.png` (`tools/images/trace.mjs`: сглаживание, изолиния, упрощение) — для кнопки.
+- `npm run pages:normalize` — сканы страниц → `pages-for-nft/<id>.jpg` (1700×1268, 142.5 dpi, симметричная обрезка).
 - `npm run nft:generate -- [id...]` — NFT-маркеры (`.iset/.fset/.fset3`) в `journey-ar/assets/nft/<id>/` (`--pages=`, `--out=` для экспериментов); логи в `tools/.out/logs/`.
 - `npm run nft:probe -- [id...] [--together] [--markers=<папка>]` — проверка маркеров без браузера: синтетические кадры с известной позой → Node-сборка jsartoolkit-nft → ошибка позы, время детекта, путаница страниц (`--together` — все маркеры в одном трекере, как в приложении). По умолчанию — маркеры приложения; относительная `--markers` считается от `tools/`.
 - После смены страниц: `pages:normalize` → `nft:generate` → `assets:publish` → `nft:probe -- --together`.

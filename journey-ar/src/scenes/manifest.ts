@@ -37,7 +37,7 @@ export interface ScenePinch {
 
 export interface SceneEntry {
   id: string;
-  /** Page id of the tracked page in book-ar-pages, for example "page90". */
+  /** Page id of the tracked page in original-sources/book-ar-pages, for example "page90". */
   page: string;
   /** GLB URL relative to the app base. */
   model: string;

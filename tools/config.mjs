@@ -16,12 +16,15 @@ export const FFMPEG = process.env.FFMPEG ?? ffmpegStatic;
 export const UNITY_PROJECT = process.env.UNITY_PROJECT ?? path.join(ROOT, 'unity-data-project');
 export const ANDROID_VIEWER =
   process.env.ANDROID_VIEWER ?? path.join(ROOT, 'android-ar-viewer.1.0');
-export const BOOK_PAGES = path.join(ROOT, 'book-ar-pages');
+// Every source the app's data and assets are made from: the original app (APK), the scans of
+// the tracked book pages, the app icons as given (favicons for the browsers) and the picture
+// shown before the camera starts (the icons and the picture are published by
+// tools/assets/ui-assets.mjs).
+export const ORIGINAL_SOURCES = path.join(ROOT, 'original-sources');
+export const BOOK_PAGES = path.join(ORIGINAL_SOURCES, 'book-ar-pages');
+export const FAVICON_SOURCE = path.join(ORIGINAL_SOURCES, 'favicon');
+export const BACKGROUND_SOURCE = path.join(ORIGINAL_SOURCES, 'journey-art1600.jpg');
 export const AR_ASSETS = path.join(ROOT, 'journey-ar', 'assets');
-// The app icons as given (favicons for the browsers) and the picture shown before the camera
-// starts (book/, outside git); published by tools/assets/ui-assets.mjs.
-export const FAVICON_SOURCE = path.join(ROOT, 'assets-favicon');
-export const BACKGROUND_SOURCE = path.join(ROOT, 'book', 'journey-art1600.jpg');
 export const PIPELINE_OUT = path.join(ROOT, 'tools', '.out');
 
 // The original Vuforia dataset of the Android app: target sizes and target textures.
@@ -30,9 +33,9 @@ export const VUFORIA_DATASET = {
   dat: path.join(ANDROID_VIEWER, 'assets', 'QCAR', 'JourneyBook.dat'),
 };
 
-/** Scan of a book page in book-ar-pages, by page id (for example "page90"). */
+/** Scan of a book page in original-sources/book-ar-pages, by page id (for example "page90"). */
 export function pageImage(page) {
-  return path.join(BOOK_PAGES, `Artbook_Journey-${page}-image1.jpg`);
+  return path.join(BOOK_PAGES, `Artbook_Journey-${page}.jpg`);
 }
 
 // Physical page size of the artbook, landscape orientation.
@@ -40,7 +43,7 @@ export const PAGE_SIZE_MM = { width: 303, height: 226 };
 
 // Normalized pages (shared by NFT generation and the virtual camera): the whole page, scaled to
 // NORMALIZED_PAGE_WIDTH and cropped symmetrically to the page proportions.
-export const NORMALIZED_PAGES = path.join(BOOK_PAGES, 'normalized');
+export const NORMALIZED_PAGES = path.join(ROOT, 'pages-for-nft');
 export const NORMALIZED_PAGE_WIDTH = 1700;
 
 /** Pixel height of a page image of the given width with the physical page proportions. */

@@ -3,7 +3,7 @@
 // image centre (the anchors in scenes.json rely on that). The crop is a fraction of a percent.
 //
 // Usage: node images/normalize-pages.mjs [scene ids...] [--width=1700] [--out=dir]
-// Defaults: all scenes, 1700 px wide, book-ar-pages/normalized/<id>.jpg.
+// Defaults: all scenes, 1700 px wide, pages-for-nft/<id>.jpg.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';

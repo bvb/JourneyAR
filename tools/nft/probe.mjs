@@ -9,7 +9,7 @@
 //        never taken for another one)
 // <dir>/<id>/<id>.{iset,fset,fset3} are the markers (default: the app's, journey-ar/assets/nft;
 // a relative <dir> is relative to tools/); the frames are rendered from
-// book-ar-pages/normalized/<id>.jpg (the page as printed, 303 x 226 mm).
+// pages-for-nft/<id>.jpg (the page as printed, 303 x 226 mm).
 import { createNFTTracker } from '@webarkit/jsartoolkit-nft';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';

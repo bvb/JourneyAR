@@ -5,7 +5,7 @@
 // counts is written to <out>/nft-report.json.
 //
 // Usage: node nft/generate.mjs [scene ids...] [--pages=dir] [--out=dir] [--threads=n]
-// Defaults: all scenes, book-ar-pages/normalized, journey-ar/assets/nft (<out>/<id>/<id>.*).
+// Defaults: all scenes, pages-for-nft, journey-ar/assets/nft (<out>/<id>/<id>.*).
 import { spawn } from 'node:child_process';
 import {
   createWriteStream,

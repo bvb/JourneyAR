@@ -1,4 +1,4 @@
-// Normalized page images (book-ar-pages/normalized/<scene id>.jpg, 1700x1268 for 303x226 mm),
+// Normalized page images (pages-for-nft/<scene id>.jpg, 1700x1268 for 303x226 mm),
 // produced by `npm run pages:normalize`.
 
 export interface PageImage {
@@ -6,7 +6,7 @@ export interface PageImage {
   url: string;
 }
 
-const urls = import.meta.glob<string>('../../../book-ar-pages/normalized/*.jpg', {
+const urls = import.meta.glob<string>('../../../pages-for-nft/*.jpg', {
   query: '?url',
   import: 'default',
   eager: true,

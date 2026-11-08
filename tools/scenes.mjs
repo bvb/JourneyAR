@@ -1,4 +1,4 @@
-// Scenes of the app: export id (Unity target), tracked page in book-ar-pages and the original
+// Scenes of the app: export id (Unity target), tracked page in original-sources/book-ar-pages and the original
 // Vuforia target.
 // `pinchMax` replaces the original upper pinch limit (relative to the initial size);
 // `pinchPivot` names the nodes whose common centre the pinch scales about (by default the pinch

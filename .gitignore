@@ -19,8 +19,8 @@ blob-report/
 
 # Source materials kept outside git (see .plans/plan.md, section 7)
 /book/
-/unity-data-project/
-/android-ar-viewer.1.0/
+# Old sources replaced by original-sources/, kept until deleted by hand
+/DELETE-ME-*/
 
 # OS files
 Thumbs.db
