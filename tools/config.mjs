@@ -6,16 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export const UNITY_EXE =
-  process.env.UNITY_EXE ?? 'C:/Program Files/Unity/6000.6.8f1/Editor/Unity.exe';
-export const BLENDER_EXE =
-  process.env.BLENDER_EXE ?? 'C:/Program Files/Blender Foundation/Blender 3.4/blender.exe';
 export const FFMPEG = process.env.FFMPEG ?? ffmpegStatic;
 
-// Kept outside git; see .plans/plan.md.
-export const UNITY_PROJECT = process.env.UNITY_PROJECT ?? path.join(ROOT, 'unity-data-project');
-export const ANDROID_VIEWER =
-  process.env.ANDROID_VIEWER ?? path.join(ROOT, 'android-ar-viewer.1.0');
 // Every source the app's data and assets are made from: the original app (APK), the scans of
 // the tracked book pages, the app icons as given (favicons for the browsers) and the picture
 // shown before the camera starts (the icons and the picture are published by
@@ -26,12 +18,14 @@ export const FAVICON_SOURCE = path.join(ORIGINAL_SOURCES, 'favicon');
 export const BACKGROUND_SOURCE = path.join(ORIGINAL_SOURCES, 'journey-art1600.jpg');
 export const AR_ASSETS = path.join(ROOT, 'journey-ar', 'assets');
 export const PIPELINE_OUT = path.join(ROOT, 'tools', '.out');
-
-// The original Vuforia dataset of the Android app: target sizes and target textures.
-export const VUFORIA_DATASET = {
-  xml: path.join(ANDROID_VIEWER, 'assets', 'QCAR', 'JourneyBook.xml'),
-  dat: path.join(ANDROID_VIEWER, 'assets', 'QCAR', 'JourneyBook.dat'),
-};
+// The original app and what tools/apk/read-apk.py reads from it (UnityPy, Python venv).
+export const ORIGINAL_APK =
+  process.env.ORIGINAL_APK ?? path.join(ORIGINAL_SOURCES, 'Journey-AR-Viewer.1.0.apk');
+export const APK_OUT = path.join(PIPELINE_OUT, 'apk');
+export const PYTHON_VENV = path.join(PIPELINE_OUT, 'pyenv');
+export const PYTHON =
+  process.env.JOURNEY_PYTHON ??
+  path.join(PYTHON_VENV, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 
 /** Scan of a book page in original-sources/book-ar-pages, by page id (for example "page90"). */
 export function pageImage(page) {

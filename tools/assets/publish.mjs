@@ -1,5 +1,5 @@
-// Publishes the converted scenes into the app:
-// - writes the GLB files of the Unity export, optimized for size (assets/optimize.mjs), to
+// Publishes the scenes converted from the original APK (npm run apk:convert) into the app:
+// - writes the converted GLB files, optimized for size (assets/optimize.mjs), to
 //   journey-ar/assets/models/<id>.glb;
 // - copies the original MP3 tracks to journey-ar/assets/audio/<id>.mp3 without re-encoding (they
 //   are already MP3 at 128-192 kbit/s and within 2.2 LU of each other); a track in another format
@@ -18,12 +18,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  APK_OUT,
   AR_ASSETS,
   FFMPEG,
+  ORIGINAL_APK,
   PAGE_SIZE_MM,
   PIPELINE_OUT,
-  UNITY_PROJECT,
-  VUFORIA_DATASET,
   pageImage,
 } from '../config.mjs';
 import { SCENES } from '../scenes.mjs';
@@ -177,9 +177,7 @@ function locateAnchor(scene, target) {
 }
 
 const previous = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { scenes: [] };
-const vuforiaTargets = new Map(
-  readVuforiaTargets(VUFORIA_DATASET.xml, VUFORIA_DATASET.dat).map((t) => [t.name, t]),
-);
+const vuforiaTargets = new Map(readVuforiaTargets(ORIGINAL_APK).map((t) => [t.name, t]));
 
 const scenes = [];
 for (const scene of SCENES) {
@@ -207,7 +205,8 @@ for (const scene of SCENES) {
       ),
     ),
   };
-  const clip = path.join(UNITY_PROJECT, audio.clipPath);
+  // The clip as stored in the APK (read-apk.py).
+  const clip = path.join(APK_OUT, audio.clipPath);
   const audioTarget = path.join(AR_ASSETS, 'audio', `${scene.id}.mp3`);
   if (path.extname(clip).toLowerCase() === '.mp3') publishFile(clip, audioTarget);
   else publishBytes(encodeMp3(clip), audioTarget, ', encoded from ' + path.basename(clip));

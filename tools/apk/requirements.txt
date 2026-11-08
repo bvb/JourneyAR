@@ -1,0 +1,2 @@
+# Python packages of tools/apk/read-apk.py (installed by npm run apk:setup).
+UnityPy==1.25.4

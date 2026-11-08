@@ -21,7 +21,8 @@ import { unityToThree } from '../scenes/unity-space';
 import type { ReferenceFile, ReferenceTarget } from './reference';
 
 const PIPELINE = '/__pipeline';
-let referenceDir = 'reference';
+// The Unity reference renders: tools/unity-reference, or ?ref=<folder in tools/.out>.
+let referenceBase = '/__unity-reference';
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -54,9 +55,7 @@ async function createPage(target: ReferenceTarget): Promise<Mesh | null> {
     ? new MeshLambertMaterial({ side: DoubleSide, color })
     : new MeshBasicMaterial({ side: DoubleSide, color });
   if (page.image) {
-    const texture = await new TextureLoader().loadAsync(
-      `${PIPELINE}/${referenceDir}/${page.image}`,
-    );
+    const texture = await new TextureLoader().loadAsync(`${referenceBase}/${page.image}`);
     texture.colorSpace = NoColorSpace;
     material.map = texture;
   }
@@ -120,10 +119,11 @@ async function main(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('scene') ?? 'architecture';
   const source = params.get('src') ?? `${PIPELINE}/export/${id}.glb`;
-  // Debugging aid: ?ref=<dir> compares against another set of Unity renders in tools/.out.
-  referenceDir = params.get('ref') ?? 'reference';
+  // Debugging aid: ?ref=<dir> compares against another set of renders in tools/.out.
+  const ref = params.get('ref');
+  if (ref) referenceBase = `${PIPELINE}/${ref}`;
 
-  const reference = (await fetch(`${PIPELINE}/${referenceDir}/reference.json`).then((r) =>
+  const reference = (await fetch(`${referenceBase}/reference.json`).then((r) =>
     r.json(),
   )) as ReferenceFile;
   const target = reference.targets.find((t) => t.id === id);
@@ -131,7 +131,7 @@ async function main(): Promise<void> {
   const time = Number(params.get('t') ?? target.time);
 
   element('title').textContent = `${id} (${target.root}), t = ${time}s`;
-  element<HTMLImageElement>('unity').src = `${PIPELINE}/${referenceDir}/${target.image}`;
+  element<HTMLImageElement>('unity').src = `${referenceBase}/${target.image}`;
 
   const renderer = new WebGLRenderer({
     canvas: element<HTMLCanvasElement>('three'),

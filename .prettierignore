@@ -3,3 +3,4 @@ package-lock.json
 **/assets/**/*.json
 **/tests/recordings/
 /original-sources/
+/tools/unity-reference/

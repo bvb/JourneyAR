@@ -3,11 +3,14 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ReferenceFile } from '../../src/dev/reference';
 
-// Renders every scene with three.js from the camera of its Unity reference render and saves the
-// side-by-side page to tools/.out/compare/: the Unity export as it is (<id>.png) and the scene
-// as published to the app, optimized (<id>-published.png; tools/assets/optimize.mjs).
+// Renders every scene with three.js from the camera of its Unity reference render
+// (tools/unity-reference) and saves the side-by-side page to tools/.out/compare/: the scene as
+// converted from the APK (<id>.png) and as published to the app, optimized (<id>-published.png;
+// tools/assets/optimize.mjs).
 const OUT = fileURLToPath(new URL('../../../tools/.out/', import.meta.url));
-const REFERENCE = `${OUT}reference/reference.json`;
+const REFERENCE = fileURLToPath(
+  new URL('../../../tools/unity-reference/reference.json', import.meta.url),
+);
 const COMPARE = `${OUT}compare/`;
 
 const reference: ReferenceFile | null = existsSync(REFERENCE)
@@ -25,7 +28,7 @@ const PUBLISHED = new Set(
 );
 
 test('reference renders exist', () => {
-  expect(reference, 'run `npm run unity:render` and `npm run unity:export` first').not.toBeNull();
+  expect(reference, 'tools/unity-reference/reference.json is missing').not.toBeNull();
 });
 
 const variants = (id: string) => [

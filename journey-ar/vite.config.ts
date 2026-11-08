@@ -8,6 +8,8 @@ import { defineConfig } from 'vitest/config';
 import { signalRelay } from './dev/signal-relay.ts';
 
 const PIPELINE_OUT = fileURLToPath(new URL('../tools/.out/', import.meta.url));
+// Unity reference renders of the scenes (made before Unity left the pipeline; kept in git).
+const UNITY_REFERENCE = fileURLToPath(new URL('../tools/unity-reference/', import.meta.url));
 const RECORDINGS = fileURLToPath(new URL('./tests/recordings/', import.meta.url));
 const CONTENT_TYPES: Record<string, string> = {
   '.glb': 'model/gltf-binary',
@@ -20,7 +22,8 @@ const CONTENT_TYPES: Record<string, string> = {
 
 /**
  * Dev server only: serves a local folder read-only under a URL prefix. Used for the asset
- * pipeline output (tools/.out, scene preview page) and the test recordings (`?source=video`).
+ * pipeline output (tools/.out) and the Unity reference renders (scene preview page), and the
+ * test recordings (`?source=video`).
  */
 function serveFolder(prefix: string, folder: string): Plugin {
   return {
@@ -108,6 +111,7 @@ export default defineConfig({
   plugins: [
     basicSsl(),
     serveFolder('/__pipeline', PIPELINE_OUT),
+    serveFolder('/__unity-reference', UNITY_REFERENCE),
     serveFolder('/__recordings', RECORDINGS),
     signalRelay(),
     nftWorkerFiles(),

@@ -1,5 +1,5 @@
-// Validates the GLB files from the Unity export and checks them against export-report.json,
-// which lists what the Unity scene had in each target subtree.
+// Validates the GLB files converted from the APK (tools/apk/convert.mjs) and checks them against
+// export-report.json, which lists what the original scene has in each target subtree.
 // Usage: node gltf/inspect-export.mjs [exportDir]
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -140,7 +140,7 @@ for (const target of report.targets) {
   for (const [key, count] of issueCodes) console.log(`  ${count}× ${key}`);
   for (const note of notes) console.log(`NOTE ${note}`);
   if (problems.length === 0) {
-    console.log('OK — matches the Unity scene');
+    console.log('OK — matches the original scene');
   } else {
     failed = true;
     for (const problem of problems) console.log(`PROBLEM ${problem}`);

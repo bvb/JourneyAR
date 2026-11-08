@@ -24,7 +24,7 @@ import {
 import type { GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { unityOffsetToThree } from './unity-space';
 
-/** A texture property as written by the Unity exporter into material extras. */
+/** A texture property as the converter writes it into material extras. */
 export interface UnityTextureRef {
   texture: string;
   /** glTF texture index. */
@@ -38,7 +38,7 @@ export interface UnityTextureRef {
 
 export type UnityPropertyValue = number | number[] | UnityTextureRef | null;
 
-/** Material extras written by the Unity exporter: the original shader and its properties. */
+/** Material extras written by the converter: the original shader and its properties. */
 export interface UnityMaterialExtras {
   unityMaterial: string;
   unityShader: string;

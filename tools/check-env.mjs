@@ -1,17 +1,18 @@
-// Verifies that every external tool and source folder the pipeline needs is in place.
+// Verifies that every external tool and source the pipeline needs is in place.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync } from 'node:fs';
 import {
-  BLENDER_EXE,
+  BACKGROUND_SOURCE,
   BOOK_PAGES,
+  FAVICON_SOURCE,
   FFMPEG,
-  UNITY_EXE,
-  UNITY_PROJECT,
-  VUFORIA_DATASET,
+  ORIGINAL_APK,
+  PYTHON,
+  pageImage,
 } from './config.mjs';
+import { SCENES } from './scenes.mjs';
+import { readVuforiaTargets } from './assets/vuforia.mjs';
 
-const EXPECTED_UNITY = '6000.6.8f1';
 let failed = false;
 
 function report(ok, label, detail) {
@@ -21,22 +22,6 @@ function report(ok, label, detail) {
 
 report(true, 'Node', process.version);
 
-report(existsSync(UNITY_EXE), 'Unity editor', UNITY_EXE);
-
-const versionFile = path.join(UNITY_PROJECT, 'ProjectSettings', 'ProjectVersion.txt');
-if (existsSync(versionFile)) {
-  const version = /m_EditorVersion: (\S+)/.exec(readFileSync(versionFile, 'utf8'))?.[1];
-  report(
-    version === EXPECTED_UNITY,
-    'Unity project version',
-    `${version} (expected ${EXPECTED_UNITY})`,
-  );
-} else {
-  report(false, 'Unity project', `${versionFile} not found`);
-}
-
-report(existsSync(BLENDER_EXE), 'Blender', BLENDER_EXE);
-
 try {
   const firstLine = execFileSync(FFMPEG, ['-version'], { encoding: 'utf8' }).split('\n')[0];
   report(true, 'ffmpeg', firstLine);
@@ -44,11 +29,35 @@ try {
   report(false, 'ffmpeg', `${FFMPEG}: ${error.message}`);
 }
 
-report(existsSync(BOOK_PAGES), 'Book pages', BOOK_PAGES);
-report(
-  existsSync(VUFORIA_DATASET.xml) && existsSync(VUFORIA_DATASET.dat),
-  'Vuforia dataset of the original app',
-  VUFORIA_DATASET.dat,
+try {
+  const version = execFileSync(PYTHON, ['-I', '-c', 'import UnityPy; print(UnityPy.__version__)'], {
+    encoding: 'utf8',
+  }).trim();
+  report(true, 'Python with UnityPy', `${PYTHON}, UnityPy ${version}`);
+} catch {
+  report(false, 'Python with UnityPy', `${PYTHON} — run npm run apk:setup`);
+}
+
+if (existsSync(ORIGINAL_APK)) {
+  try {
+    const targets = readVuforiaTargets(ORIGINAL_APK);
+    report(true, 'Original APK', `${ORIGINAL_APK}, ${targets.length} Vuforia targets`);
+  } catch (error) {
+    report(false, 'Original APK', `${ORIGINAL_APK}: ${error.message}`);
+  }
+} else {
+  report(false, 'Original APK', `${ORIGINAL_APK} not found`);
+}
+
+const missingPages = SCENES.map((scene) => pageImage(scene.page)).filter(
+  (file) => !existsSync(file),
 );
+report(
+  missingPages.length === 0,
+  'Book page scans',
+  missingPages.length ? `missing ${missingPages.join(', ')}` : BOOK_PAGES,
+);
+report(existsSync(FAVICON_SOURCE), 'App icons', FAVICON_SOURCE);
+report(existsSync(BACKGROUND_SOURCE), 'Background picture', BACKGROUND_SOURCE);
 
 process.exitCode = failed ? 1 : 0;

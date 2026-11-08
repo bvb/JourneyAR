@@ -123,7 +123,7 @@ async function compressTextures(document) {
 const sourceOf = (texture) => texture?.source ?? texture?.extensions?.EXT_texture_webp?.source;
 
 /**
- * Points the material extras' texture indices (written by the Unity exporter for the export's
+ * Points the material extras' texture indices (written by the converter for the export's
  * glTF textures) at glTF textures of the same images in `json`, adding the textures that are
  * missing. The images must be the export's, in the same order.
  */

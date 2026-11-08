@@ -17,7 +17,7 @@ import { UNITY_DECAY } from './legacy-rendering';
 import { createUnityMaterial, isUnityMaterial, type UnityMaterialExtras } from './unity-materials';
 import { unityOffsetToThree } from './unity-space';
 
-/** A component as written by the Unity exporter into node extras. */
+/** A component of the original Unity scene, as the converter writes it into node extras. */
 interface UnityComponent {
   type: string;
   [field: string]: unknown;
@@ -174,7 +174,7 @@ function collectUvScrolls(gltf: GLTF): UvScroll[] {
 }
 
 /**
- * Turns a GLB exported from the Unity scene into renderable content: original materials,
+ * Turns a GLB converted from the original Unity scene into renderable content: original materials,
  * lights and ambient, gamma vertex colours and UV scrolling.
  */
 export async function prepareUnityScene(

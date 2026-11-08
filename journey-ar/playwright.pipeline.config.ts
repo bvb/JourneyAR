@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Asset pipeline checks (not app tests): render exported scenes next to the Unity references.
-// Needs the outputs of `npm run unity:render` and `npm run unity:export` in tools/.out.
+// Asset pipeline checks (not app tests): render the converted scenes next to the Unity
+// reference renders (tools/unity-reference). Needs `npm run apk:convert` (tools/.out/export).
 const PORT = 5173;
 const BASE_URL = `https://localhost:${PORT}`;
 
