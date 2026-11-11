@@ -6,6 +6,17 @@ runs in the browser on Android, iPhone and desktop, with nothing to install.
 
 **Open the app: https://bvb.github.io/JourneyAR/**
 
+Videos showing the app work (the files are also in the repository:
+[creature.mp4](original-sources/creature.mp4), [journey.mp4](original-sources/journey.mp4)).
+
+The Guardian Serpent:
+
+https://github.com/user-attachments/assets/b2b25cfd-4ee4-4187-be3a-2be2ea291cdf
+
+The Travelers:
+
+https://github.com/user-attachments/assets/31c997cd-702b-479d-951b-82c3deb31e32
+
 It is a remake of the 2012 DAQRI app (Unity 3.5 + Vuforia). The 3D scenes, sounds and target
 data are converted straight from the original Android app
 (`original-sources/Journey-AR-Viewer.1.0.apk`); Unity is not needed. Pages are tracked with
@@ -13,14 +24,14 @@ natural feature tracking (jsartoolkit-nft in a web worker), scenes are rendered 
 
 ## Repository layout
 
-| Path                           | Contents                                                                                         |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `journey-ar/`                  | The app (Vite + TypeScript + three.js). `assets/` holds the published models, audio, NFT data    |
-| `journey-virtual-book-camera/` | Virtual camera for development and tests: the book pages in 3D, streamed into the app            |
-| `tools/`                       | Asset pipeline: APK converter, glTF checks, NFT markers, publishing. Paths in `tools/config.mjs` |
-| `original-sources/`            | Every source the assets are made from: the original APK, page scans, icons, background picture   |
-| `pages-for-nft/`               | Normalized page images, shared by the NFT markers and the virtual camera                         |
-| `.github/workflows/pages.yml`  | Publishing on GitHub Pages                                                                       |
+| Path                           | Contents                                                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `journey-ar/`                  | The app (Vite + TypeScript + three.js). `assets/` holds the published models, audio, NFT data                        |
+| `journey-virtual-book-camera/` | Virtual camera for development and tests: the book pages in 3D, streamed into the app                                |
+| `tools/`                       | Asset pipeline: APK converter, glTF checks, NFT markers, publishing. Paths in `tools/config.mjs`                     |
+| `original-sources/`            | Every source the assets are made from: the original APK, page scans, icons, background picture; videos of the scenes |
+| `pages-for-nft/`               | Normalized page images, shared by the NFT markers and the virtual camera                                             |
+| `.github/workflows/pages.yml`  | Publishing on GitHub Pages                                                                                           |
 
 The project notes, the plan and the decisions log are in Russian: `CLAUDE.md` and
 `.plans/plan.md`.

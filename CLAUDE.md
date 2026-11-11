@@ -13,7 +13,8 @@
   - `Journey-AR-Viewer.1.0.apk` — оригинальное приложение 2012 года (Unity 3.5.5f3 + Vuforia): сцены, модели, текстуры, звук, датасет Vuforia;
   - `book-ar-pages/Artbook_Journey-page<N>.jpg` — сканы отслеживаемых страниц;
   - `favicon/` — иконки приложения от пользователя (favicon для браузеров), файлы как даны — источник для `ui:publish`;
-  - `journey-art1600.jpg` — картинка до включения камеры (источник для `ui:publish`).
+  - `journey-art1600.jpg` — картинка до включения камеры (источник для `ui:publish`);
+  - `creature.mp4`, `journey.mp4` — видео сцен Creature и Character на книге (записи с телефона, как даны); в конвейере не участвуют. В начале README — те же видео как вложения GitHub (плеер) и ссылки на файлы. Плеер прямо в README на GitHub возможен только для видео, загруженных во вложения GitHub (`https://github.com/user-attachments/assets/<id>` отдельной строкой; загрузка — перетаскиванием файла в веб-редактор GitHub, до 10 МБ на бесплатном плане): `media-src` в CSP github.com не пускает `raw`/`media.githubusercontent.com`, так что файлы из репозитория (LFS) в README не воспроизводятся.
 - `pages-for-nft/<id>.jpg` — нормализованные страницы (`pages:normalize`): из них NFT-маркеры и страницы виртуальной камеры.
 - `.github/workflows/pages.yml` — публикация на GitHub Pages.
 - `LICENSE` (MIT, код) и `NOTICE.md` (контент Journey — правообладателям, используется с разрешения; список папок с ним).

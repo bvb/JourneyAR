@@ -12,13 +12,13 @@ belong to its rights holders, and it is used with their permission. This content
 
 These files contain that content or are made from it:
 
-| Path                           | Contents                                                                  |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| `original-sources/`            | The original app (APK), page scans, icons, background picture             |
-| `pages-for-nft/`               | Page images                                                               |
-| `journey-ar/assets/`           | 3D models, music and sounds, NFT markers, icons, background picture, logo |
-| `journey-ar/tests/recordings/` | Virtual camera recordings of the pages                                    |
-| `tools/unity-reference/`       | Renders of the original scenes                                            |
+| Path                           | Contents                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `original-sources/`            | The original app (APK), page scans, icons, background picture, videos of the scenes |
+| `pages-for-nft/`               | Page images                                                                         |
+| `journey-ar/assets/`           | 3D models, music and sounds, NFT markers, icons, background picture, logo           |
+| `journey-ar/tests/recordings/` | Virtual camera recordings of the pages                                              |
+| `tools/unity-reference/`       | Renders of the original scenes                                                      |
 
 Do not reuse these files outside this project without the permission of the rights holders.
 
